@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from datetime import datetime
 
-from database import Base
+from .database import Base
 
 
 class Event(Base):
@@ -19,16 +19,16 @@ class Event(Base):
     date_end: Mapped['datetime'] = mapped_column(DateTime, index=True, nullable=True)
 
     created_at: Mapped['datetime'] = mapped_column(DateTime, index=True, nullable=False, server_default=func.now())
-    updated_at: Mapped['datetime'] = mapped_column(DateTime, server_default=func.now(), server_onupdate=func.now(), onupdate=datetime.now)
+    updated_at: Mapped['datetime'] = mapped_column(DateTime, server_default=func.now(), server_onupdate=func.now(), onupdate=datetime.utcnow)
 
-    remainder_times: Mapped['Remainder_time'] = relationship(back_populates='current_event')
+    remainder_times: Mapped['RemainderTime'] = relationship(back_populates='current_event')
 
 
-class Remainder_time(Base):
+class RemainderTime(Base):
     __tablename__ = 'remainder_time'
 
     time_to_remaind: Mapped['datetime'] = mapped_column(DateTime, index=True, nullable=True)
-    event_id: Mapped[int] = ForeignKey('event.id')
+    event_id: Mapped[int] = mapped_column(ForeignKey('event.id'))
 
     current_event: Mapped['Event'] = relationship(back_populates='remainder_times')
 
