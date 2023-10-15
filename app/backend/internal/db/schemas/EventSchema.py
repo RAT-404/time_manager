@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, date, time
 
 
 class RemainderTimeBase(BaseModel):
@@ -17,14 +17,16 @@ class RemainderTime(RemainderTimeBase):
     current_event: "Event"
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 
 class EventBase(BaseModel):
     event_name: str
-    date_start: datetime
-    date_end: datetime | None
+    date_start: date
+    time_start: time
+    date_end: date | None
+    time_end: time | None
 
 
 class EventCreate(EventBase):
@@ -40,4 +42,4 @@ class Event(EventBase):
     remainder_times: list[RemainderTime] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
