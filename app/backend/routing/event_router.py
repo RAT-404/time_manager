@@ -2,12 +2,12 @@ from fastapi import APIRouter, Query, Body, Depends
 from sqlalchemy import select
 
 from typing import Annotated
-import pytz
-from datetime import datetime as dt, date as d, time as t, timedelta as tl
 
 from backend.internal.db.schemas import EventSchema
 from backend.internal.db.database import SessionLocal
 from backend.internal.db import models
+
+from backend.internal.buisness_logic import * 
 
 
 def get_session():
@@ -29,70 +29,26 @@ def get_event(datetime: Annotated[str | None, Query()] = None,
               name: Annotated[str | None, Query()] = None,
               session = Depends(get_session)):
     
-    event = models.Event
+    event = models.Event.__table__
     query_fields = ('event_name', 'date_start', 'time_start', 'date_end', 'time_end')
-    
+
+    query = select(event.c[*query_fields])
+
     if datetime:
-        date_format = '%d-%m-%Y'
-        time_format = '%H:%M:%S%z'
-        datetime_format = f'{date_format}T{time_format}'
-
-        if datetime[-1] == 'H': # если на конце H то надо крч искать все события в этом часу
-            
-            datetime = datetime[:-1]
-            
-            datetime = dt.strptime(datetime.replace(' ', '+'), datetime_format)
-            
-            date = datetime.date()
-            time = datetime.time()
-
-            
-            time_with_upper_error = t(time.hour + 1, time.minute, time.second, tzinfo=pytz.timezone('Europe/Moscow'))
-            time_with_down_error = t(time.hour, time.minute, time.second, tzinfo=pytz.timezone('Europe/Moscow'))
-            
-            query_fields_ = (event.event_name, event.date_start, event.time_start, event.date_end, event.time_end)
-            query = select(*query_fields_
-                       ).where(event.date_start == date
-                                ).where(time_with_down_error <= event.time_start
-                                ).where(event.time_start <= time_with_upper_error)
-
-            events = [EventSchema.EventCreate(**dict(zip(query_fields, row))) for row in session.execute(query)]
-
-            return {'events': events}
-
+        datetime_config = get_datetime_config(datetime, session, query_fields, event)
         
-        datetime = dt.strptime(datetime.replace(' ', '+'), datetime_format)
-        
-        date = datetime.date()
-        time = datetime.time()
-
-        
-        time_with_upper_error = t(time.hour, time.minute + 1, time.second, tzinfo=pytz.timezone('Europe/Moscow'))
-        time_with_down_error = t(time.hour, time.minute - 1, time.second, tzinfo=pytz.timezone('Europe/Moscow'))
-
-        query_fields_ = (event.event_name, event.date_start, event.time_start, event.date_end, event.time_end)
-        query = select(*query_fields_
-                       ).where(event.date_start == date
-                                ).where(time_with_down_error <= event.time_start
-                                ).where(event.time_start <= time_with_upper_error)
-        
-        events = [EventSchema.EventCreate(**dict(zip(query_fields, row))) for row in session.execute(query)]
-
-        return {'events': events}
+        match(datetime[-1]):
+            case 'H':
+                return get_events_by_hour(*datetime_config)
+            case 'D':
+                return get_events_by_date(*datetime_config)
+            case _:
+                return get_event_by_current_time(*datetime_config)
         
     elif name:
-        print(name)
-        query_fields_ = (event.event_name, event.date_start, event.time_start, event.date_end, event.time_end)
-        query = select(*query_fields_).where(event.event_name == name)
-
-        events = [EventSchema.EventCreate(**dict(zip(query_fields, row))) for row in session.execute(query)]
-
-        return {'events': events}
+        return get_events_by_name(query_fields, event, session, name)
     
-    query = select(event.event_name, event.date_start, event.date_end)
-    
-    events = [EventSchema.EventCreate(**dict(zip(query_fields, row))) for row in session.execute(query)]
-    return {'events' : events}
+    return get_events(query, query_fields, session)
 
 
 @event_router.post('/create')
