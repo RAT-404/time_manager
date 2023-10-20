@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Query, Body, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Query, Body, Depends, Response
+from sqlalchemy import select, insert, update, delete
 
 from typing import Annotated
 
-from backend.internal.db.schemas import EventSchema
+from backend.internal.db.schemas import EventSchema as ES
 from backend.internal.db.database import SessionLocal
 from backend.internal.db import models
 
@@ -52,14 +52,22 @@ def get_event(datetime: Annotated[str | None, Query()] = None,
 
 
 @event_router.post('/create')
-def create_event(event: Annotated[EventSchema.EventCreate, Body()], 
-                 remaind_time: Annotated[EventSchema.RemainderTimeCreate, Body()],
-                 session = Depends(get_session)):
-    pass
+def create_event(event: Annotated[ES.EventCreate, Body()],
+                 remaind_time_list: Annotated[list[ES.RemainderTimeCreate] | None, Body()] = None,
+                 session: SessionLocal = Depends(get_session)):
+
+    event_id = create_db_event(session, event)
+
+    if remaind_time_list:
+        create_remainder_time(session, remaind_time_list, event_id)
+
+    return Response(status_code=200)
+
+
 
 @event_router.patch('/update-info')
-def create_event(event: Annotated[EventSchema.EventCreate, Body()], 
-                 remaind_time: Annotated[EventSchema.RemainderTimeCreate, Body()],
+def create_event(event: Annotated[ES.EventCreate, Body()], 
+                 remaind_time: Annotated[ES.RemainderTimeCreate, Body()],
                  session = Depends(get_session)):
     pass
 

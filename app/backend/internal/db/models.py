@@ -33,7 +33,8 @@ class Event(Base):
 class RemainderTime(Base):
     __tablename__ = 'remainder_time'
 
-    time_to_remaind: Mapped['datetime'] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    date_to_remaind: Mapped['date'] = mapped_column(Date, index=True, nullable=True)
+    time_to_remaind: Mapped['time'] = mapped_column(Time(timezone=True), index=True, nullable=True)
     event_id: Mapped[int] = mapped_column(ForeignKey('event.id'))
 
     current_event: Mapped['Event'] = relationship(back_populates='remainder_times')
