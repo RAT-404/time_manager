@@ -3,7 +3,9 @@ from datetime import datetime, date, time
 
 
 class RemainderTimeBase(BaseModel):
+    date_to_remaind: str
     time_to_remaind: str
+    event_id: int | None = None
 
 
 class RemainderTimeCreate(RemainderTimeBase):
@@ -13,9 +15,6 @@ class RemainderTimeCreate(RemainderTimeBase):
 class RemainderTime(RemainderTimeBase):
     id: int
 
-    event_id: int
-    current_event: "Event"
-
     class Config:
         from_attributes = True
 
@@ -23,10 +22,10 @@ class RemainderTime(RemainderTimeBase):
 
 class EventBase(BaseModel):
     event_name: str
-    date_start: date
-    time_start: time
-    date_end: date | None
-    time_end: time | None
+    date_start: str
+    time_start: str
+    date_end: str | None = None
+    time_end: str | None = None
 
 
 class EventCreate(EventBase):
