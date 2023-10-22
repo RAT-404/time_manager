@@ -4,18 +4,10 @@ from sqlalchemy import select, insert, update, delete
 from typing import Annotated
 
 from backend.internal.db.schemas import EventSchema as ES
-from backend.internal.db.database import SessionLocal
+from backend.internal.db.database import AsyncSession, get_async_session
 from backend.internal.db import models
 
 from backend.internal.buisness_logic import * 
-
-
-def get_session():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 
 event_router = APIRouter(
@@ -25,55 +17,54 @@ event_router = APIRouter(
 
 
 @event_router.get('/')
-def get_event(datetime: Annotated[str | None, Query()] = None,
-              name: Annotated[str | None, Query()] = None,
-              session = Depends(get_session)):
+async def get_event(datetime: Annotated[str | None, Query()] = None,
+                    name: Annotated[str | None, Query()] = None,
+                    session: AsyncSession = Depends(get_async_session),
+                    optional: str | None = None) -> dict[str, list[ES.EventBase]]:
+ 
+    event = Event(models.Event, session, datetime)
     
-    event = models.Event.__table__
-    query_fields = ('event_name', 'date_start', 'time_start', 'date_end', 'time_end')
-
-    query = select(event.c[*query_fields])
-
     if datetime:
-        datetime_config = get_datetime_config(datetime, session, query_fields, event)
-        
-        match(datetime[-1]):
+        match(optional):
             case 'H':
-                return get_events_by_hour(*datetime_config)
+                result = await event.get_events_by_hour()
             case 'D':
-                return get_events_by_date(*datetime_config)
+                result = await event.get_events_by_date()
             case _:
-                return get_event_by_current_time(*datetime_config)
+                result = await event.get_event_by_current_time()
         
+        return result
+
     elif name:
-        return get_events_by_name(query_fields, event, session, name)
+        result = await event.get_events_by_name(name)
+        return result
     
-    return get_events(query, query_fields, session)
+    result = await event.get_events_by_query()
+    return result
 
-
+  
 @event_router.post('/create')
-def create_event(event: Annotated[ES.EventCreate, Body()],
-                 remaind_time_list: Annotated[list[ES.RemainderTimeCreate] | None, Body()] = None,
-                 session: SessionLocal = Depends(get_session)):
-
-    event_id = create_db_event(session, event)
+async def create_event(event: Annotated[ES.EventCreate, Body()],
+                        remaind_time_list: Annotated[list[ES.RemainderTimeCreate] | None, Body()] = None,
+                        session: AsyncSession = Depends(get_async_session)):
+    event_id = await create_db_event(session, event)
 
     if remaind_time_list:
-        create_remainder_time(session, remaind_time_list, event_id)
+        await create_remainder_time(session, remaind_time_list, event_id)
 
     return Response(status_code=200)
 
 
 
 @event_router.patch('/update-info')
-def create_event(event: Annotated[ES.EventCreate, Body()], 
+async def create_event(event: Annotated[ES.EventCreate, Body()], 
                  remaind_time: Annotated[ES.RemainderTimeCreate, Body()],
-                 session = Depends(get_session)):
+                 session = Depends(get_async_session)):
     pass
 
 @event_router.delete('/delete')
-def delete_event_by_id(event_id: Annotated[int, Query()],
-                       session = Depends(get_session)):
+async def delete_event_by_id(event_id: Annotated[int, Query()],
+                       session = Depends(get_async_session)):
     pass
 
 

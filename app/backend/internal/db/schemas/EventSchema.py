@@ -22,10 +22,10 @@ class RemainderTime(RemainderTimeBase):
 
 class EventBase(BaseModel):
     event_name: str
-    date_start: str
-    time_start: str
-    date_end: str | None = None
-    time_end: str | None = None
+    date_start: date
+    time_start: time
+    date_end: date | None = None
+    time_end: time | None = None
 
 
 class EventCreate(EventBase):

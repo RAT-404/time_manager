@@ -1,17 +1,21 @@
 from fastapi import FastAPI
+import asyncio
 
-from backend.internal.db import engine, Base
+from backend.internal.db import Base, SessionManager
 from backend.routing.event_router import event_router
 
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=SessionManager().engine)
+
 
 app = FastAPI(title='time_manager')
 
 
 @app.get('/')
-def main():
+async def main():
     return {'message': 'hello'}
 
 
 app.include_router(event_router)
+
+

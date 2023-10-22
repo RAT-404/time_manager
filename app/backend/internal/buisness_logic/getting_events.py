@@ -2,108 +2,88 @@ from sqlalchemy import select
 from fuzzywuzzy import fuzz
 
 import pytz
-from datetime import datetime as dt, date, time
+from datetime import datetime as dt, time
+from typing import Any
 
-from backend.internal.db.schemas import EventSchema
-from backend.internal.db.database import SessionLocal
+from backend.internal.db.schemas import EventSchema as ES
+from backend.internal.db.database import AsyncSession
 from backend.internal.db import models
 
 
-def get_datetime_config(datetime, session, query_fields, event) -> tuple:
-    date_format = '%d-%m-%Y'
-    time_format = '%H:%M:%S%z'
-    datetime_format = f'{date_format}T{time_format}'
-    datetime_config = (datetime, session, query_fields, datetime_format, event)
-    return datetime_config
+class Event:
+    def __init__(self, event: models.Event, session: AsyncSession, datetime: str | None = None,  query_fields: tuple[str] | None = None):
+        self.session = session
+        self.query_fields = query_fields if query_fields else ('event_name', 'date_start', 'time_start', 'date_end', 'time_end')
+        self.event = event
+
+        if datetime:
+            self.__create_datetime(datetime)
+        
+
+    async def get_events_by_query(self, query: Any | None = None) -> dict[str, list[ES.EventBase]]:
+        query = query if query else select(self.event.__table__.c[*self.query_fields])
+        events = await self.session.execute(query)
+        events = [ES.EventBase(**dict(zip(self.query_fields, row))) for row in events]
+        return {'events': events}
 
 
-def __get_date_and_time(str_datetime: str, datetime_format) -> tuple[date, time]:
-    datetime = dt.strptime(str_datetime.replace(' ', '+'), datetime_format)
-    
-    return (datetime.date(), datetime.time())
+    async def get_events_by_hour(self):
+        get_time = self.__get_time_with_error(self.time)
+        
+        result = await self.__get_events(get_time(hour=self.time.hour + 1), get_time())
+        return result
 
 
-def __get_time_with_error(current_time: time):
-    def wrap(hour: int = current_time.hour, minute: int = current_time.minute, second: int = current_time.second, tzinfo: pytz.timezone=pytz.timezone('Europe/Moscow')) -> time:
-        return time(hour=hour, minute=minute, second=second, tzinfo=tzinfo)
-    return wrap
+    async def get_event_by_current_time(self) -> dict[str, list[ES.EventBase]]:
+        get_time = self.__get_time_with_error(self.time)
+
+        result = await self.__get_events(get_time(minute=self.time.minute + self.minutes_error), get_time(minute=self.time.minute - self.minutes_error))
+        return result
 
 
-def get_events(query, query_fields, session: SessionLocal) -> dict[str, list[EventSchema.EventCreate]]:
-    events = [EventSchema.EventCreate(**dict(zip(query_fields, row))) for row in session.execute(query)]
-    return {'events': events}
+    async def get_events_by_date(self) -> dict[str, list[ES.EventBase]]:
+        event = self.event.__table__.c
+        query = select(event[*self.query_fields]).where(event.date_start == self.date)
+        result = await self.get_events_by_query(query)
+        return result
 
 
-def __get_events(datetime: str, 
-    session: SessionLocal, 
-    query_fields: tuple[str], 
-    datetime_format: str, 
-    event: models.Event.__table__,
-    time_with_upper_error,
-    time_with_down_error
-    ):
+    async def get_events_by_name(self, name: str, verbal_error: int = 80) -> dict[str, list[ES.EventBase]]:
+        query = select(self.event.__table__.c[*self.query_fields])
+        db_result = await self.get_events_by_query(query)
+        
+        result = []
+        for event in db_result.get('events'):
+            if fuzz.ratio(event.model_dump().get('event_name', ''), name) >= verbal_error:
+                result.append(event)
 
-    date_, _ = __get_date_and_time(datetime, datetime_format)
-    
-
-    query = select(event.c[*query_fields]
-                ).where(event.c.date_start == date_
-                        ).where(time_with_down_error <= event.c.time_start
-                        ).where(event.c.time_start <= time_with_upper_error)
-
-    return get_events(query, query_fields, session)
-
-
-def get_events_by_hour(datetime: str, 
-                       session: SessionLocal, 
-                       query_fields: tuple[str], 
-                       datetime_format: str, 
-                       event: models.Event.__table__
-                    ):
-    datetime = datetime[:-1]
-            
-    _, time_ = __get_date_and_time(datetime, datetime_format)
-
-    one_hour = 59
-    minutes_error = time_.minute + (one_hour - time_.minute)
-    
-    get_time = __get_time_with_error(time_)
+        return {'events': result}
     
 
-    return __get_events(datetime, session, query_fields, datetime_format, event, get_time(minute=minutes_error), get_time())
-
-
-def get_events_by_date(datetime: str, 
-                       session: SessionLocal, 
-                       query_fields: tuple[str], 
-                       datetime_format: str, 
-                       event: models.Event.__table__):
-    datetime = datetime[:-1]
-
-    date_, _ = __get_date_and_time(datetime, datetime_format)
-
-    query = select(event.c[*query_fields]).where(event.c.date_start == date_)
-
-    return get_events(query, query_fields, session)
-
-
-def get_event_by_current_time(datetime: str, 
-                              session: SessionLocal, 
-                              query_fields: tuple[str], 
-                              datetime_format: str, 
-                              event: models.Event.__table__
-                              ) -> dict[str, list[EventSchema.EventCreate]]:
+    def __get_time_with_error(self, current_time: time):
+        def wrap(hour: int = current_time.hour, minute: int = current_time.minute, second: int = current_time.second, tzinfo: pytz.timezone = pytz.timezone('Europe/Moscow')) -> time:
+            return time(hour=hour, minute=minute, second=second, tzinfo=tzinfo)
+        return wrap
     
-    _, time_ = __get_date_and_time(datetime, datetime_format)
 
-    get_time = __get_time_with_error(time_)
+    async def __get_events(self, time_with_upper_error, time_with_down_error) -> dict[str, list[ES.EventBase]]:
+        event = self.event.__table__.c
+        
+        query = select(event[*self.query_fields]
+                    ).where(event.date_start == self.date
+                            ).where(time_with_down_error <= event.time_start
+                            ).where(event.time_start <= time_with_upper_error)
+
+        result = await self.get_events_by_query(query)
+        return result
     
-    minutes_error = 1 # 1 minute
 
-    return __get_events(datetime, session, query_fields, datetime_format, event, get_time(minute=time_.minute + minutes_error), get_time(minute=time_.minute - minutes_error))
-
-
-def get_events_by_name(query_fields, event, session, name, verbal_error=80):
-    query = select(*query_fields).where(fuzz.ratio(event.event_name, name) >= verbal_error)
-
-    return get_events(query, query_fields, session)
+    def __create_datetime(self, datetime: str):
+        self.datetime = datetime
+        self.date_format = '%d-%m-%Y'
+        self.time_format = '%H:%M:%S%z'
+        self.datetime_format = f'{self.date_format}T{self.time_format}'
+        datetime = dt.strptime(self.datetime.replace(' ', '+'), self.datetime_format)
+        
+        self.date, self.time = (datetime.date(), datetime.time())
+        self.minutes_error = 1

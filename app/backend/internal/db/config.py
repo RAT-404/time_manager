@@ -21,7 +21,7 @@ class Settings(BaseSettings):
         
         data = info.data
         return PostgresDsn.build(
-            scheme='postgresql+psycopg2',
+            scheme='postgresql+asyncpg',
             host=data.get('POSTGRES_HOST'),
             username=data.get('POSTGRES_USER'),
             password=data.get('POSTGRES_PASSWORD'),
