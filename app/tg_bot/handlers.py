@@ -9,7 +9,6 @@ import aiohttp
 from auxiliary_functions import *
 from schemas import *
 from api_request import *
-from config import get_settings
 
 
 router = Router()      
