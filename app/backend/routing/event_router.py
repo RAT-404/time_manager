@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Query, Body, Depends, Response
+from fastapi import APIRouter, Query, Body, Path, Depends, Response
 from sqlalchemy import select, insert, update, delete
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from backend.internal.db.schemas import EventSchema as ES
 from backend.internal.db.database import AsyncSession, get_async_session
@@ -12,17 +12,18 @@ from backend.internal.buisness_logic import *
 
 event_router = APIRouter(
     prefix='/event', 
-    tags=['event'],
+    tags=['event']
 )
 
 
-@event_router.get('/')
-async def get_event(datetime: Annotated[str | None, Query()] = None,
+@event_router.get('/{chat_id}')
+async def get_event(chat_id: Annotated[str, Path()],
+                    datetime: Annotated[str | None, Query()] = None,
                     name: Annotated[str | None, Query()] = None,
                     session: AsyncSession = Depends(get_async_session),
-                    optional: str | None = None) -> dict[str, list[ES.EventBase]]:
- 
-    event = Event(models.Event, session, datetime)
+                    optional: str | None = None) -> dict[str, list[ES.Event]]:
+
+    event = Event(chat_id, models.Event, session, datetime)
     
     if datetime:
         match(optional):
@@ -41,30 +42,46 @@ async def get_event(datetime: Annotated[str | None, Query()] = None,
     
     result = await event.get_events_by_query()
     return result
-
+    
   
-@event_router.post('/create')
-async def create_event(event: Annotated[ES.EventCreate, Body()],
-                        remaind_time_list: Annotated[list[ES.RemainderTimeCreate] | None, Body()] = None,
-                        session: AsyncSession = Depends(get_async_session)):
-    event_id = await create_db_event(session, event)
+@event_router.post('/create-event')
+async def create_event(event: Annotated[ES.EventCreate, Body()], session: AsyncSession = Depends(get_async_session)) -> Response:
+    await DBRecord(session, models.Event, event).create_record()
+    return Response(status_code=200)
+    
 
-    if remaind_time_list:
-        await create_remainder_time(session, remaind_time_list, event_id)
-
+@event_router.post('/create-remainder-times')
+async def create_remainder_time(remainder_time_list: Annotated[list[ES.RemainderTimeCreate], Body()],
+                                session: AsyncSession = Depends(get_async_session)) -> Response:
+    await DBRecord(session, models.RemainderTime).create_record(remainder_time_list)
     return Response(status_code=200)
 
 
+@event_router.patch('/update-event/{event_id}')
+async def update_event_by_id(event_id: Annotated[int, Path()],
+                             new_event_params: Annotated[ES.EventCreate, Body()],
+                             session = Depends(get_async_session)) -> Response:
+    await DBRecord(session, models.Event, new_event_params).patch_record(event_id)
+    return Response(status_code=200)
 
-@event_router.patch('/update-info')
-async def create_event(event: Annotated[ES.EventCreate, Body()], 
-                 remaind_time: Annotated[ES.RemainderTimeCreate, Body()],
-                 session = Depends(get_async_session)):
-    pass
 
-@event_router.delete('/delete')
-async def delete_event_by_id(event_id: Annotated[int, Query()],
-                       session = Depends(get_async_session)):
-    pass
+@event_router.patch('/update-remainder-time/{remainder_time_id}')
+async def update_remainder_time_by_id(remainder_time_id: Annotated[int, Path()],
+                                      remainder_time_params: Annotated[ES.RemainderTimeCreate, Body()],
+                                      session = Depends(get_async_session)) -> Response:
+    await DBRecord(session, models.RemainderTime, remainder_time_params).patch_record(remainder_time_id)
+    return Response(status_code=200)
+
+
+@event_router.delete('/delete-event/{event_id}')
+async def delete_event_by_id(event_id: Annotated[int, Path()], session = Depends(get_async_session)) -> Response:
+    await DBRecord(session, models.Event).delete_record(event_id)
+    return Response(status_code=200)
+
+
+@event_router.delete('/delete-remainder-time/{remainder_time_id}')
+async def delete_remainder_time_by_id(remainder_time_id: Annotated[int, Path()], session = Depends(get_async_session)) -> Response:
+    await DBRecord(session, models.RemainderTime).delete_record(remainder_time_id)
+    return Response(status_code=200)
 
 

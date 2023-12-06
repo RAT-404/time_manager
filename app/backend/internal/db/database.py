@@ -1,8 +1,9 @@
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, as_declarative
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, as_declarative, scoped_session
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_scoped_session
 from sqlalchemy.exc import SQLAlchemyError
 
 from fastapi import HTTPException
+from asyncio import current_task
 
 from .config import get_settings
 
@@ -18,14 +19,16 @@ class SessionManager:
     def __init__(self):
         self.__sqlalchemy_url = str(get_settings().SQLALCHEMY_URL)
         self.engine = create_async_engine(url=self.__sqlalchemy_url)
-        self.async_session = sessionmaker(bind=self.engine, class_=AsyncSession, expire_on_commit=False)
+        self.async_session_factory = sessionmaker(bind=self.engine, class_=AsyncSession, expire_on_commit=False)
+        self.session = async_scoped_session(self.async_session_factory, current_task)
 
     def get_session(self) -> AsyncSession:
-        return self.async_session
+        return self.session
     
 
 async def get_async_session():
     async_session = SessionManager().get_session()
+    
     async with async_session() as session:
         try:
             yield session
