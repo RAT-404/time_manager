@@ -22,13 +22,12 @@ def validate_datetime(date_: str, time_: str):
 
 def validate_remainder_time_args(params: list[str]):
     if len(params) == 3:
-        event_name, date_to_remaind, time_to_remaind, *_ = params
+        _, date_to_remaind, time_to_remaind, *_ = params
         date_to_remaind, time_to_remaind = validate_datetime(date_to_remaind, time_to_remaind)
     
     else:
         raise TypeError('не корректное количество аргументов для создания события (должно быть 3)')
     return {
-            'event_id': event_name,
             'date_to_remaind': date_to_remaind,
             'time_to_remaind': time_to_remaind,
         }

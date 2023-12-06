@@ -2,10 +2,6 @@ from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import Command
 
-import aiohttp
-
-
-
 from auxiliary_functions import *
 from schemas import *
 from api_request import *
@@ -116,7 +112,7 @@ async def delete_event(msg: Message):
 
 
 @router.message(F.text.startswith('crt'))
-async def cmd_create_event(msg: Message):
+async def create_remainder_time(msg: Message):
     lst = [i for i in msg.text.strip().split('\n')][1:]
     event_name = lst[0]
     chat_id = msg.chat.id
@@ -136,9 +132,31 @@ async def cmd_create_event(msg: Message):
 
 
 @router.message(F.text.startswith('drt'))
-async def cmd_create_event(msg: Message):
-    await msg.answer('delete remainder time')
-    # await check_status_code(status_code, msg, 'напоминане удалено')
+async def delete_remainder_time(msg: Message):
+    lst = [i for i in msg.text.strip().split('\n')][1:]
+    event_name = lst[0]
+    chat_id = msg.chat.id
+    events_by_name, *_ = await APIRequest(chat_id=chat_id, url_params=f'?name={event_name.strip()}').get_events_json()
+    event_by_name = events_by_name.get('events')[0]
+    remainder_time_by_event = event_by_name.get('remainder_times')
+
+    status_code = 404
+    try:
+        remainder_time_json = validate_remainder_time_args(lst)
+        remainder_time_id = None
+        for remainder_time in remainder_time_by_event:
+            dates_equale = remainder_time.get('date_to_remaind') == remainder_time_json.get('date_to_remaind')
+            times_equale = remainder_time.get('time_to_remaind')[:-3] == remainder_time_json.get('time_to_remaind')[:-2]
+            if dates_equale and times_equale:
+                remainder_time_id = remainder_time.get('id')
+        
+        
+        if remainder_time_id:
+            status_code = await APIRequest(url_params=f'delete-remainder-time/').delete_remainder_times(remainder_time_id)
+    except TypeError as error_message:
+        await msg.answer(str(error_message))
+    else:
+        await check_status_code(status_code, msg, 'напоминане удалено')
 
 
 @router.message()

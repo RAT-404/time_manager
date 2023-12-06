@@ -39,7 +39,11 @@ class APIRequest:
         async with aiohttp.ClientSession() as session:
             async with session.post(url=self.api_url, json=remainder_times) as resp:
                 return resp.status
-
+    
+    async def delete_remainder_times(self, remainder_time_id: int):
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(url=f'{self.api_url}{remainder_time_id}') as resp:
+                return resp.status
 
     def __parse_json_to_pretty_str(self,
                                    api_json: str,
