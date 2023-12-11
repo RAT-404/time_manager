@@ -2,141 +2,39 @@ from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import Command, StateFilter
 
-from aiogram import Bot, Dispatcher, F
-from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery
-from aiogram.utils.markdown import hbold
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 
-from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback, DialogCalendar, DialogCalendarCallback, get_user_locale
+from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback, get_user_locale
 
 from auxiliary_functions import *
 from schemas import *
 from api_request import *
+from states import *
 
 
 router = Router()      
 
 
+timezone_buttons = [[KeyboardButton(text=f'+{i}') for i in range(1, 7)],
+                    [KeyboardButton(text=f'+{i}') for i in range(7, 13)]]
+
+command_buttons = [[KeyboardButton(text='/create_event'), KeyboardButton(text='/update_event'), KeyboardButton(text='/delete_event')],
+                   [KeyboardButton(text='/create_rt'), KeyboardButton(text='/delete_rt'), KeyboardButton(text='/all')]]
+
+timezone_kb = ReplyKeyboardMarkup(keyboard=timezone_buttons, resize_keyboard=True)      
+start_kb = ReplyKeyboardMarkup(keyboard=command_buttons, resize_keyboard=True)
+
+
 @router.message(Command('help'))
-async def start_handler(msg: Message):
-    await msg.answer('''Привет, вот правила, по которым работает бот:\n\t\tесть несколько команд, все они работают при наличии некоторых символов в начале сообщения:\n\t\tall (выводит все грядущие события), если нужна подробная информация по конкретному событию, то\nse (search event) и в следующей строке введите его название\n\t\tce (create event) --- crt (create reminder time)\n\t\tue (update event) --- urt (update reminder time)\n\t\tde (delete event) --- drt (delete reminder time)\n\t\tза более подробной информацией обращайтесь к команадам с сисволом /\n\t\tнапример /ce_help выведет подробную информацию по созданию отдельного события''')
-    
-
-@router.message(Command('ce_help'))
-async def create_event_help(msg: Message):
-    await msg.answer('''ce (create event) указывается в первой строке\n\t\tпри создании нового события, во второй строке указывается его название\n\t\tв третьей дата начала, пример (2023-12-03)\nв четвертой время начала события, пример (22:15:00)\n\t\tкаждый новый параметр указывается с новой строки и в требуемом формате, иначе будет выведена ошибка''')
-
-@router.message(Command('ue_help'))
-async def update_event_help(msg: Message):
-    await msg.answer('''ue (update event) указывается в первой строке\n\t\tпри обновлении данных о событии, во второй строке указывается его нынешнее название и через знач > новое, если название не надо менять, можете не ставить >\n\t\tв третьей новая дата начала, пример (2023-12-03) или . в случае, если дату не надо изменять\n\t\tв четвертой новаое время начала события, пример (22:15:00) или . в случае, если дату не надо изменять\n\t\tкаждый новый параметр указывается с новой строки и в требуемом формате, иначе будет выведена ошибка''')
-    
-
-@router.message(Command('de_help'))
-async def delete_event_help(msg: Message):
-    await msg.answer('''de (delete event) указывается в первой строке\nдля удаления события необходимо написать его название во второй строке\n\t\tкаждый новый параметр указывается с новой строки и в требуемом формате, иначе будет выведена ошибка''')
+async def get_all_events(msg: Message):
+    await msg.answer('Привет, рад, что ты решил воспользоваться моим time manager`ом, для начала напиши /start')
 
 
-@router.message(Command('crt_help'))
-async def create_event_help(msg: Message):
-    await msg.answer('''crt (create remainder) указывается в первой строке\n\t\tпри создании нового напоминания, во второй строке указывается название событие, для которого создается напоминание\n\t\tв третьей дата напоминания, пример (2023-12-03)\n\t\tв четвертой время напоминания, пример (22:15:00)\n\t\tкаждый новый параметр указывается с новой строки и в требуемом формате, иначе будет выведена ошибка''')
-
-
-
-class EventOperations(StatesGroup):
-    create_event = State()
-    update_event = State()
-    delete_event = State()
-
-    choosing_event_name = State()
-    choosing_event_date = State()
-    choosing_event_time = State()
-
-
-class RemainderTimeOperations(StatesGroup):
-    create_remainder_time = State()
-    update_remainder_time = State()
-    delete_remainder_time = State()
-
-    
-
-kb = [[KeyboardButton(text='Navigation Calendar')]]
-
-start_kb = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-    
-
-@router.message(Command('create_event'))
-async def start_create_event(msg: Message, state: FSMContext):
-    await msg.answer(
-        "Please select a date: ",
-        reply_markup=await SimpleCalendar(locale=await get_user_locale(msg.from_user)).start_calendar()
-    )
-    await state.update_data(operation_type='create_event')
-    await state.set_state(EventOperations.choosing_event_date)
-    
-
-@router.message(EventOperations.choosing_event_date)
-@router.callback_query(SimpleCalendarCallback.filter())
-async def process_simple_calendar(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
-    calendar = SimpleCalendar(
-        locale=await get_user_locale(callback_query.from_user), show_alerts=True
-    )
-    calendar.set_dates_range(datetime(2022, 1, 1), datetime(2025, 12, 31))
-    selected, date = await calendar.process_selection(callback_query, callback_data)
-    if selected:
-        await state.update_data(date_start=date.strftime('%Y-%m-%d'))
-        await state.set_state(EventOperations.choosing_event_time)
-        await callback_query.message.answer(
-            f'You selected {date.strftime("%d-%m-%Y")}\nNow write time',
-            reply_markup=start_kb
-        )
-
-
-
-
-
-@router.message(EventOperations.choosing_event_time)
-async def fn(msg: Message, state: FSMContext):
-    await state.update_data(time_start=msg.text.lower())
-
-    await msg.answer('Теперь выберите имя для события')
-    await state.set_state(EventOperations.choosing_event_name)
-    
-
-async def create_event(data: str, msg: Message):
-    # lst = [i for i in msg.text.strip().split('\n')][1:]
-    try:
-        # event_json = validate_event_args(lst)
-        # event_json['chat_id'] = str(msg.chat.id)
-        data['time_start'] += '+0300'
-        data['chat_id'] = str(msg.chat.id)
-    except TypeError as error_message:
-        await msg.answer(str(error_message))
-    else:
-        event_data = Event(**data).model_dump()
-        status_code = await APIRequest(url_params=f'create-event/').create_event(event_data)
-        await check_status_code(status_code, msg, 'событие создано')
-
-
-@router.message(EventOperations.choosing_event_name)
-async def fn(msg: Message, state: FSMContext):
-    await state.update_data(event_name=msg.text.lower())
-    
-    data = await state.get_data()
-    operation_type = data.get('operation_type')
-    match operation_type:
-        case 'create_event':
-            await create_event(data, msg)
-        case _:
-            await msg.answer('Что то пошло не так')
-
-    await msg.answer(str(data))
-    await state.clear()
-
-    
+@router.message(Command('start'))
+async def start(msg: Message):
+    await msg.answer(text='Выберите следующее действие и следуйте инструкциям', reply_markup=start_kb)
 
 
 @router.message(Command('all'))
@@ -145,113 +43,149 @@ async def get_all_events(msg: Message):
     await check_status_code(status_code, msg, response_text)
 
 
-# @router.message(Command('search_event'))
-# async def get_all_events(msg: Message):
-#     response_text, status_code = await APIRequest(chat_id=msg.chat.id).get_events()
-#     await check_status_code(status_code, msg, response_text)
+@router.message(Command('create_event'))
+async def start_create_event(msg: Message, state: FSMContext):
+    await msg.answer(
+        "Выберите дату: ",
+        reply_markup=await SimpleCalendar(locale=await get_user_locale(msg.from_user)).start_calendar()
+    )
+    await state.update_data(operation_type='create_event')
+    await state.set_state(DateOperations.choosing_date)
+
+@router.message(Command('update_event'))
+async def delete_event(msg: Message, state: FSMContext):
+    await msg.answer(
+        "Выберите новую дату: ",
+        reply_markup=await SimpleCalendar(locale=await get_user_locale(msg.from_user)).start_calendar()
+    )
+    await state.update_data(operation_type='update_event')
+    await state.set_state(DateOperations.choosing_date)
 
 
-@router.message(F.text.startswith('se'))
-async def search_event_by_name(msg: Message):
-    event_name = [i for i in msg.text.strip().split()][1:]
-    chat_id = msg.chat.id
-    response_text, status_code = await APIRequest(chat_id=chat_id, url_params=f'?event_name={event_name}').get_events()
-    
-    await check_status_code(status_code, msg, response_text)
+@router.message(Command('delete_event'))
+async def delete_event(msg: Message, state: FSMContext):
+    await msg.answer('Введите название события, которое хотите удалить')
+    await state.update_data(operation_type='delete_event')
+    await state.set_state(DateOperations.choosing_date)
 
 
+@router.message(Command('create_rt'))
+async def start_create_event(msg: Message, state: FSMContext):
+    await msg.answer(
+        "Выберите дату для напоминания: ",
+        reply_markup=await SimpleCalendar(locale=await get_user_locale(msg.from_user)).start_calendar()
+    )
+    await state.update_data(operation_type='create_rt')
+    await state.set_state(DateOperations.choosing_date)
 
 
+@router.message(Command('delete_rt'))
+async def delete_event(msg: Message, state: FSMContext):
+    await msg.answer('Введите номер напоминание, которое хочешь удалить, оно указано в (скобочка) при выхове команды all')
+    await state.update_data(operation_type='delete_rt')
+    await state.set_state(DateOperations.choosing_rt_id)
+ 
+
+@router.message(DateOperations.choosing_date)
+@router.callback_query(SimpleCalendarCallback.filter())
+async def process_simple_calendar(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
+    calendar = SimpleCalendar(
+        locale=await get_user_locale(callback_query.from_user), show_alerts=True
+    )
+    actual_year = datetime.now().year
+    calendar.set_dates_range(datetime(actual_year - 1, 1, 1), datetime(actual_year + 3, 12, 31))
+    selected, date = await calendar.process_selection(callback_query, callback_data)
+    if selected:
+        data = await state.get_data()
+        date_ = date.strftime('%Y-%m-%d')
+        if data.get('operation_type') in ('create_rt', ):
+            await state.update_data(date_to_remaind=date_)    
+        else:
+            await state.update_data(date_start=date_)
+
+        await state.set_state(DateOperations.choosing_time)
+        await callback_query.message.answer(
+            f'Вы выбрали {date.strftime("%d-%m-%Y")}\nТеперь напишите время в формате часы:минуты'
+        )
 
 
-@router.message(F.text.startswith('ue'))
-async def update_event(msg: Message):
-    chat_id = msg.chat.id
-    event_name, *lst = [i for i in msg.text.strip().split('\n')][1:]
-    
-    if '>' in event_name:
-        event_name, new_event_name = event_name.split('>', 1)
-        new_event_name = new_event_name.strip()
-    new_event_name = event_name.strip()
-    
-    events_by_name, *_ = await APIRequest(chat_id=chat_id, url_params=f'?name={event_name.strip()}').get_events_json()
-    event_by_name = events_by_name.get('events')[0]
-    event_id = event_by_name.get('id')
-    
-    lst = [new_event_name] + lst
+@router.message(DateOperations.choosing_time)
+async def choosing_event_time_start(msg: Message, state: FSMContext):
     try:
-        event_json = validate_event_args(lst)
-        for key in event_json.keys():
-            if event_json[key] != '.':
-                event_by_name[key] = event_json[key]
-
-        event_json['chat_id'] = str(msg.chat.id)
-    except TypeError as error_message:
+        time_start = validate_time(msg.text.lower())
+    except ValueError as error_message:
         await msg.answer(str(error_message))
     else:
-        event_data = Event(**event_by_name).model_dump()
-        status_code = await APIRequest(url_params=f'update-event/').update_event(event_id, event_data)
-        await check_status_code(status_code, msg, 'событие обновлено')
+        data = await state.get_data()
+        if data.get('operation_type') in ('create_rt', ):
+            await state.update_data(time_to_remaind=time_start)    
+        else:
+            await state.update_data(time_start=time_start)
 
-
-@router.message(F.text.startswith('de'))
-async def delete_event(msg: Message):
-    chat_id = msg.chat.id
-    event_name = msg.text.strip().split('\n')[1]
-    events_by_name, *args = await APIRequest(chat_id=chat_id, url_params=f'?name={event_name}').get_events_json()
-    events: list = events_by_name.get('events')
-    event_id = events[0].get('id')
+        await msg.answer('Выберите вашу временную зону', reply_markup=timezone_kb)
+        await state.set_state(DateOperations.choosing_timezone)
     
-    status_code = await APIRequest(url_params=f'delete-event/').delete_event(event_id)
-    await check_status_code(status_code, msg, 'событие удалено')
 
-
-@router.message(F.text.startswith('crt'))
-async def create_remainder_time(msg: Message):
-    lst = [i for i in msg.text.strip().split('\n')][1:]
-    event_name = lst[0]
-    chat_id = msg.chat.id
-    events_by_name, *_ = await APIRequest(chat_id=chat_id, url_params=f'?name={event_name.strip()}').get_events_json()
-    event_by_name = events_by_name.get('events')[0]
-    event_id = event_by_name.get('id')
-    
+@router.message(DateOperations.choosing_timezone)
+async def choosing_event_timezone(msg: Message, state: FSMContext):
     try:
-        remainder_time_json = validate_remainder_time_args(lst)
-        remainder_time_json['event_id'] = event_id
-    except TypeError as error_message:
+        timezone = msg.text.lower().replace('+', '')
+        tz = int(timezone)
+        if not(0 <= tz <= 12):
+            raise ValueError('Неверный тип временной зоны, временная зона должна быть в диапозоне от 0 до 12')
+    except ValueError as error_message:
         await msg.answer(str(error_message))
     else:
-        remainder_time_data = [RemainderTime(**remainder_time_json).model_dump()]
-        status_code = await APIRequest(url_params=f'create-remainder-times/').create_remainder_times(remainder_time_data)
-        await check_status_code(status_code, msg, 'напоминание создано')
+        if len(timezone) == 1:
+            timezone = '0' + timezone
+        timezone = f'+{timezone}00'
+        await msg.answer(f'Временной сдвиг успешно установлен: {timezone}')
+        await state.update_data(chat_timezone=timezone)
+
+        data = await state.get_data()
+        text = 'Выберите название нового события'
+        op_type = data.get('operation_type')
+        if op_type in ['update_event']:
+            text = 'Выберите название события, которое хотите изменить'
+        elif op_type in ['create_rt']:
+            text = 'Выберите название события, к которому хотите создать напоминание'
+        await state.set_state(DateOperations.choosing_event_name)
+        await msg.answer(text)
 
 
-@router.message(F.text.startswith('drt'))
-async def delete_remainder_time(msg: Message):
-    lst = [i for i in msg.text.strip().split('\n')][1:]
-    event_name = lst[0]
-    chat_id = msg.chat.id
-    events_by_name, *_ = await APIRequest(chat_id=chat_id, url_params=f'?name={event_name.strip()}').get_events_json()
-    event_by_name = events_by_name.get('events')[0]
-    remainder_time_by_event = event_by_name.get('remainder_times')
-
-    status_code = 404
+@router.message(DateOperations.choosing_rt_id)
+async def choosing_rt_id(msg: Message):
+    remainder_time_id = msg.text.lower()
+    
     try:
-        remainder_time_json = validate_remainder_time_args(lst)
-        remainder_time_id = None
-        for remainder_time in remainder_time_by_event:
-            dates_equale = remainder_time.get('date_to_remaind') == remainder_time_json.get('date_to_remaind')
-            times_equale = remainder_time.get('time_to_remaind')[:-3] == remainder_time_json.get('time_to_remaind')[:-2]
-            if dates_equale and times_equale:
-                remainder_time_id = remainder_time.get('id')
-        
-        
-        if remainder_time_id:
-            status_code = await APIRequest(url_params=f'delete-remainder-time/').delete_remainder_times(remainder_time_id)
-    except TypeError as error_message:
-        await msg.answer(str(error_message))
+        rt_id = int(remainder_time_id)
+        if rt_id <= 0:
+            ValueError('Не правильно')
+    except ValueError:
+        await msg.answer('Необходимо ввести число, целочисленно, то что указано в (скобках)')
     else:
-        await check_status_code(status_code, msg, 'напоминане удалено')
+        await delete_rt(remainder_time_id, msg)
+
+
+@router.message(DateOperations.choosing_event_name)
+async def choosing_event_name(msg: Message, state: FSMContext):
+    await state.update_data(event_name=msg.text.lower())
+    
+    data = await state.get_data()
+    operation_type = data.get('operation_type')    
+    match operation_type:
+        case 'create_event':
+            await create_event(data, msg)
+        case 'update_event':
+            await update_event(data, msg)
+        case 'delete_event':
+            await delete_event(data, msg)
+        case 'create_rt':
+            await create_rt(data, msg)
+        case _:
+            await msg.answer('Что то пошло не так')
+
+    await state.clear()
 
 
 @router.message()

@@ -60,7 +60,7 @@ class APIRequest:
                     if remainder_times == []:
                         remainder_times = '\n----У данного события нет напоминаний'
                     else:
-                        remainder_times = [f"\n----{rm.get('date_to_remaind')} {rm.get('time_to_remaind').split('+')[0]}" for rm in remainder_times]
+                        remainder_times = [f"\n----{rm.get('date_to_remaind')} {rm.get('time_to_remaind').split('+')[0]} ({rm.get('id')})" for rm in remainder_times]
                         remainder_times = ''.join(remainder_times)
                 else:
                     remainder_times = ''
