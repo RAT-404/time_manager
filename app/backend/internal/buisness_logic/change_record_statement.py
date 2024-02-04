@@ -1,16 +1,16 @@
 from sqlalchemy import update, delete, select, insert
 
-from ..db import models, database as db
-from ..db.schemas.EventSchema import EventCreate, RemainderTimeCreate
+from internal.db import models, database as db
+from internal.db.schemas import EventSchema as ES
 
 
 class DBRecord:
-    def __init__(self, session: db.AsyncSession, model: models.Event | models.RemainderTime, new_record_params: EventCreate | RemainderTimeCreate | None = None):
+    def __init__(self, session: db.AsyncSession, model: models.Event | models.RemainderTime, new_record_params: ES.EventCreate | ES.RemainderTimeCreate | None = None):
         self.model = model
         self.new_record_params = new_record_params
         self.session = session
         
-    async def create_record(self, remainder_time_list: list[RemainderTimeCreate] | None = None) -> int | None:
+    async def create_record(self, remainder_time_list: list[ES.RemainderTimeCreate] | None = None) -> int | None:
         if self.model is models.Event:
             record_exists = await self.__get_exists_event_id()
             if record_exists is None:

@@ -1,26 +1,21 @@
 from sqlalchemy import select
 import asyncio
 
-from fastapi import Depends
-
-from typing import Annotated
-from datetime import datetime, time, timedelta
-from threading import Thread
+from datetime import datetime, time
 from pytz import timezone
 from dateutil import tz
 
 import aiohttp
 
-from ..db.models import RemainderTime, Event
-from ..db.database import AsyncSession, get_async_session
-from tg_bot.config import get_settings
+from internal.db import models, config
     
-# TODO need refactoring
-async def start_timer(session):
-    remainder_time_table = RemainderTime.__table__.c
-    event_table = Event.__table__.c
 
-    bot_token = get_settings().BOT_TOKEN
+# TODO refactoring
+async def start_timer(session):
+    remainder_time_table = models.RemainderTime.__table__.c
+    event_table = models.Event.__table__.c
+
+    bot_token = config.get_settings().BOT_TOKEN
 
     while True:
         current_datetime = datetime.now(tz=timezone('Europe/Moscow'))
@@ -38,11 +33,11 @@ async def start_timer(session):
             seconds_to_remaind = int((datetime.combine(date_to_remaind, time_to_remaind) - current_datetime).total_seconds())
             if 0 <= seconds_to_remaind <= 60:
                 await asyncio.sleep(int(seconds_to_remaind))
-                message = f'НАПОМИНАНИЕ О СОБЫТИИ: {event_name}'
+                message = f'НАПОМИНАНИЕ О СОБЫТИИ: {event_name} {date_to_remaind}'
                 async with aiohttp.ClientSession() as web_session:
                     async with web_session.get(url=f'https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message}') as resp:
-                        status_code = resp.status  # TODO тут отправляется оповещение боту в тг +- так в голове у меня (отправляется id события, в другой таблице ищется чат с этим событием, туда летит напоминание)
-                        # logging status code
+                        status_code = resp.status
+                        # TODO logging status code
 
         await asyncio.sleep(60)
   

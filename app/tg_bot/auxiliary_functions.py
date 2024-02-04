@@ -7,6 +7,15 @@ from schemas import *
 from api_request import *
 
 
+def highlight_event_day(text):
+    return f'{text}\n*'
+
+
+async def get_events_on_month(chat_id, year: str, month: str):
+    events, *_ = await APIRequest(chat_id=chat_id, url_params=f'get-month-events/?date={year}-{month}').get_events_json()
+    return events
+
+
 async def create_event(data: dict, msg: Message):
     try:
         data['time_start'] += data['chat_timezone']

@@ -8,9 +8,11 @@ class APIRequest:
     def __init__(self, chat_id: str = '', api_url: str = get_settings().API_URL, url_params: str = ''):
         self.api_url = f'{api_url}{url_params}' if not chat_id else f'{api_url}{chat_id}/{url_params}'
         
-    async def get_events(self):
+    async def get_events(self, for_internal_usage: bool = False):
         api_json, status_code = await self.get_events_json()
-        return (self.__parse_json_to_pretty_str(api_json), status_code)
+        
+        parse_json = self.__parse_json_to_event_dates_list if for_internal_usage else self.__parse_json_to_pretty_str
+        return (parse_json(api_json), status_code)
     
     async def get_events_json(self):
         async with aiohttp.ClientSession() as session:
@@ -45,6 +47,11 @@ class APIRequest:
             async with session.delete(url=f'{self.api_url}{remainder_time_id}') as resp:
                 return resp.status
 
+    def __parse_json_to_event_dates_list(self, api_json: str):
+        events: list[dict] = api_json.get('events', False)
+        if events:
+            return [event.get('date_start') for event in events]
+
     def __parse_json_to_pretty_str(self,
                                    api_json: str,
                                    parse_remainder_times: bool = True) -> str:        
@@ -66,5 +73,6 @@ class APIRequest:
                     remainder_times = ''
                 event_time = event_time.split('+', 1)[0]
                 finally_str += f'{event_name} {event_date} {event_time}{remainder_times}\n'
-                
         return finally_str  
+    
+    

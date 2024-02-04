@@ -4,18 +4,17 @@ from sqlalchemy import (
     ForeignKey,
     Date,
     Time,
-    DateTime,
-    Integer
+    DateTime
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from datetime import datetime, date, time
 import pytz
 
-from .database import Base
+from . import database
 
 
-class Event(Base):
+class Event(database.Base):
     __tablename__ = 'event'
 
     chat_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
@@ -35,7 +34,7 @@ class Event(Base):
 
 
 
-class RemainderTime(Base):
+class RemainderTime(database.Base):
     __tablename__ = 'remainder_time'
 
     date_to_remaind: Mapped['date'] = mapped_column(Date, index=True, nullable=True)

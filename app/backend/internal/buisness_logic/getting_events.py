@@ -2,22 +2,22 @@ from sqlalchemy import select
 from fuzzywuzzy import fuzz
 
 import pytz
-from datetime import datetime as dt, time
+from datetime import datetime as dt, time, timedelta
 from typing import Any
 from dateutil import tz
 
-from backend.internal.db.schemas import EventSchema as ES
-from backend.internal.db.database import AsyncSession
-from backend.internal.db import models
+from internal.db.schemas import EventSchema as ES
+from internal.db import database
+from internal.db import models
 
 
 class Event:
-    def __init__(self, chat_id: str, event: models.Event, session: AsyncSession, datetime: str | None = None,  query_fields: tuple[str] | None = None):
+    def __init__(self, chat_id: str, event: models.Event, session: database.AsyncSession, datetime: str | None = None,  query_fields: tuple[str] | None = None):
         self.session = session
         self.event = event
         self.chat_id = chat_id
 
-        self.date_format = '%d-%m-%Y'
+        self.date_format = '%Y-%m-%d'
         self.time_format = '%H:%M:%S%z'
         self.datetime_format = f'{self.date_format}T{self.time_format}'
         self.tzoffset = tz.tzoffset(None, 3*60*60) # TODO refactoring!! pydantic-settings
@@ -29,8 +29,10 @@ class Event:
         query = query if query is not None else select(self.event).where(self.event.chat_id == self.chat_id).where(self.event.date_start >= self.date)
         events = await self.session.execute(query)
         
+
         # TODO refactoring
         schema_events = []
+
         for row in events:
             row = row[0]
             schema_event = ES.Event(**row.__dict__)
@@ -47,12 +49,29 @@ class Event:
         
         result = await self.__get_events(get_time(hour=self.time.hour + 1), get_time())
         return result
+    
+    async def get_event_by_month(self):
+        min_date = self.datetime
+        max_date = self.datetime + timedelta(days=31)
+        days = max_date.date().day
+        max_date -= timedelta(days=days)
+
+        query = select(self.event
+                    ).where(self.event.chat_id == self.chat_id
+                            ).where(self.event.date_start <= max_date
+                                ).where(self.event.date_start >= min_date)
+        
+        result = await self.get_events_by_query(query)
+        return result
 
 
     async def get_event_by_current_time(self) -> dict[str, list[ES.EventBase]]:
         get_time = self.__get_time_with_error(self.time)
-
-        result = await self.__get_events(get_time(minute=self.time.minute + self.minutes_error), get_time(minute=self.time.minute - self.minutes_error))
+        
+        max_time_range = self.time.minute + self.minutes_error if self.time.minute + self.minutes_error <= 59 else 0
+        min_time_range = self.time.minute - self.minutes_error if self.time.minute - self.minutes_error >= 0 else 0
+        
+        result = await self.__get_events(get_time(minute=max_time_range), get_time(minute=min_time_range))
         return result
 
 
@@ -81,13 +100,11 @@ class Event:
     
 
     async def __get_events(self, time_with_upper_error, time_with_down_error) -> dict[str, list[ES.EventBase]]:
-        event = self.event.__table__.c
-        
-        query = select(event
+        query = select(self.event
                     ).where(self.event.chat_id == self.chat_id
-                            ).where(event.date_start == self.date
-                                ).where(time_with_down_error <= event.time_start
-                                    ).where(event.time_start <= time_with_upper_error)
+                            ).where(self.event.date_start == self.date
+                                ).where(time_with_down_error <= self.event.time_start
+                                    ).where(self.event.time_start <= time_with_upper_error)
 
         result = await self.get_events_by_query(query)
         return result
@@ -95,10 +112,11 @@ class Event:
 
     def __create_datetime(self, datetime: str):
         self.datetime = datetime
-        self.date_format = '%d-%m-%Y'
-        self.time_format = '%H:%M:%S%z'
-        self.datetime_format = f'{self.date_format}T{self.time_format}'
-        datetime = dt.strptime(self.datetime.replace(' ', '+'), self.datetime_format)
+        self.datetime = self.datetime.replace(' ', '+')
+        if '+' not in self.datetime:
+            self.datetime += '+0300'
         
-        self.date, self.time = (datetime.date(), datetime.time())
+        self.datetime = dt.strptime(self.datetime, self.datetime_format)
+        
+        self.date, self.time = (self.datetime.date(), self.datetime.time())
         self.minutes_error = 1

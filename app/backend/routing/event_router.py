@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Query, Body, Path, Depends, Response
-from sqlalchemy import select, insert, update, delete
 
-from typing import Annotated, Any
+from typing import Annotated
 
-from backend.internal.db.schemas import EventSchema as ES
-from backend.internal.db.database import AsyncSession, get_async_session
-from backend.internal.db import models
+from internal.db.schemas import EventSchema as ES
+from internal.db.database import AsyncSession, get_async_session
+from internal.db import models
 
-from backend.internal.buisness_logic import * 
+from internal.buisness_logic.change_record_statement import DBRecord
+from internal.buisness_logic.getting_events import Event
+
+from datetime import datetime
 
 
 event_router = APIRouter(
@@ -41,8 +43,26 @@ async def get_event(chat_id: Annotated[str, Path()],
         return result
     
     result = await event.get_events_by_query()
-    return result
     
+    return result
+
+
+@event_router.get('/{chat_id}/get-month-events')
+async def get_event(chat_id: Annotated[str, Path()],
+                    date: Annotated[str | None, Query()] = None,
+                    session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.Event]]:
+
+    if date:
+        try:
+            date = str(datetime.strptime(date, '%Y-%m')).replace(' ', 'T')
+        except ValueError:
+            return Response(content={'error': 'wrong date pattern'}, status_code=400)
+
+    result = await Event(chat_id, models.Event, session, date).get_event_by_month()    
+    return result
+
+
+
   
 @event_router.post('/create-event')
 async def create_event(event: Annotated[ES.EventCreate, Body()], session: AsyncSession = Depends(get_async_session)) -> Response:

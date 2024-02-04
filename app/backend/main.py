@@ -3,21 +3,19 @@ from fastapi.responses import RedirectResponse
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Annotated
 
-from backend.internal.db import Base, SessionManager
-from backend.routing.event_router import event_router
-from backend.internal.db.database import AsyncSession, get_async_session
+from routing.event_router import event_router
+from internal.db import database
 
-from backend.internal.buisness_logic.time_remainder import start_timer
+from internal.buisness_logic import time_remainder
 
 
 async def startup_timer():
-    async_session_generate = get_async_session()
+    async_session_generate = database.get_async_session()
     async for i in async_session_generate:
         session = i
         break
-    await start_timer(session)
+    await time_remainder.start_timer(session)
 
 
 @asynccontextmanager

@@ -3,10 +3,10 @@ from aiogram.types import Message
 from aiogram.filters import Command, StateFilter
 
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 
-from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback, get_user_locale
+from aiogram_calendar import SimpleCalendarCallback, get_user_locale
 
 from auxiliary_functions import *
 from schemas import *
@@ -17,14 +17,23 @@ from states import *
 router = Router()      
 
 
-timezone_buttons = [[KeyboardButton(text=f'+{i}') for i in range(1, 7)],
-                    [KeyboardButton(text=f'+{i}') for i in range(7, 13)]]
+timezone_buttons = [[KeyboardButton(text=f'+{i}') for i in range(0, 6)],
+                    [KeyboardButton(text=f'+{i}') for i in range(6, 12)]]
 
 command_buttons = [[KeyboardButton(text='/create_event'), KeyboardButton(text='/update_event'), KeyboardButton(text='/delete_event')],
                    [KeyboardButton(text='/create_rt'), KeyboardButton(text='/delete_rt'), KeyboardButton(text='/all')]]
 
 timezone_kb = ReplyKeyboardMarkup(keyboard=timezone_buttons, resize_keyboard=True)      
 start_kb = ReplyKeyboardMarkup(keyboard=command_buttons, resize_keyboard=True)
+
+
+from aiogram.types import CallbackQuery
+
+from aiogram_calendar.schemas import SimpleCalendarCallback
+
+from datetime import datetime
+from modified_simple_calendar import SimpleCalendar
+from ChooseEvent import EventChoose
 
 
 @router.message(Command('help'))
@@ -38,9 +47,63 @@ async def start(msg: Message):
 
 
 @router.message(Command('all'))
-async def get_all_events(msg: Message):
-    response_text, status_code = await APIRequest(chat_id=msg.chat.id).get_events()
+async def view_all_events(msg: Message):    # , state: FSMContext
+    request = APIRequest(chat_id=msg.chat.id)
+    response_text, status_code = await request.get_events()
+    if not response_text:
+        response_text = 'На данный момент предстоящие события не обнаружены'
+    else:
+        calendar = SimpleCalendar(locale=await get_user_locale(msg.from_user))
+        await msg.answer(
+            "События: ",
+            reply_markup=await calendar.start_calendar(chat_id=msg.chat.id)
+        )    
+
     await check_status_code(status_code, msg, response_text)
+
+
+@router.callback_query(SimpleCalendarCallback.filter())
+async def process_simple_calendar(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
+    calendar = SimpleCalendar(
+        locale=await get_user_locale(callback_query.from_user), show_alerts=True
+    )
+    actual_datetime = datetime.now()
+    actual_year, actual_month, actual_day = actual_datetime.year, actual_datetime.month, actual_datetime.day
+    calendar.set_dates_range(datetime(actual_year - 1, 1, 1), datetime(actual_year + 3, 12, 31))
+    
+    events_on_month = await get_events_on_month(callback_query.message.chat.id, actual_year, actual_month)
+    
+    args = {
+        'callback_query': callback_query,
+        'callback_data': callback_data,
+        'actual_datetime': actual_datetime,
+        'calendar_events_dates': events_on_month
+    }
+
+    selected, date = await calendar.process_selection(args)
+    
+    if selected:
+        print(events_on_month.get('events'), type(events_on_month))
+        event_names_kb = []
+        for event in events_on_month.get('events'):
+            event_names_kb.append(InlineKeyboardButton(text=event.get('event_name')))
+        
+        data = await state.get_data()
+        date_ = date.strftime('%Y-%m-%d')
+        if data.get('operation_type') in ('create_rt', ):
+            await state.update_data(date_to_remaind=date_)    
+        else:
+            await state.update_data(date_start=date_)
+
+        await state.set_state(DateOperations.choosing_time)
+        event = EventChoose()
+        await callback_query.message.answer(
+            "События: ",
+            reply_markup=await event.start_choose(chat_id=callback_query.message.chat.id)
+        )    
+
+
+
 
 
 @router.message(Command('create_event'))
@@ -94,7 +157,7 @@ async def process_simple_calendar(callback_query: CallbackQuery, callback_data: 
     )
     actual_year = datetime.now().year
     calendar.set_dates_range(datetime(actual_year - 1, 1, 1), datetime(actual_year + 3, 12, 31))
-    selected, date = await calendar.process_selection(callback_query, callback_data)
+    selected, date = await calendar.process_selection(callback_query, callback_data, callback_query.message.chat.id)
     if selected:
         data = await state.get_data()
         date_ = date.strftime('%Y-%m-%d')
