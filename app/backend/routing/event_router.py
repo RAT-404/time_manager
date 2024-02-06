@@ -63,6 +63,14 @@ async def get_event(chat_id: Annotated[str, Path()],
 
 
 
+@event_router.get('/{chat_id}/get-event/{event_id}')
+async def get_event_by_id(chat_id: Annotated[str, Path()],
+                          event_id: Annotated[int, Path()],
+                          session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.Event]]:
+
+    result = await Event(chat_id, models.Event, session).get_event_by_id(event_id)    
+    return result
+
   
 @event_router.post('/create-event')
 async def create_event(event: Annotated[ES.EventCreate, Body()], session: AsyncSession = Depends(get_async_session)) -> Response:

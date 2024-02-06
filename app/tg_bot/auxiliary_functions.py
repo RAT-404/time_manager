@@ -2,9 +2,24 @@ from datetime import datetime
 from handlers import Message
 from aiogram.fsm.context import FSMContext
 from api_request import APIRequest
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram_calendar import get_user_locale
 
+from modifaed_calendar import SimpleCalendar
 from schemas import *
 from api_request import *
+
+
+async def unpack_state(state: FSMContext) -> tuple:
+    event_data = (await state.get_data()).get('event_data')
+    event_id, event_name, date_start, time_start = event_data.get('event_id'), event_data.get('event_name'), event_data.get('date_start'), event_data.get('time_start')
+    return (event_id, event_name, date_start, time_start)
+
+def get_timezone() -> str:
+    dt = datetime.now()
+    offset = str(dt.astimezone().tzinfo.utcoffset(dt)).split(':')[0]
+    offset = f'+0{offset}00' if len(offset) == 1 else f'+{offset}00'
+    return offset
 
 
 def highlight_event_day(text):
@@ -16,9 +31,19 @@ async def get_events_on_month(chat_id, year: str, month: str):
     return events
 
 
+# async def process_calendar(callback_query, callback_data):
+    
+#     return (selected, actual_year, actual_month)
+
+
+
+# async def create_events_kb(chat_id, actual_year, actual_month) -> InlineKeyboardMarkup:
+    
+
+
 async def create_event(data: dict, msg: Message):
     try:
-        data['time_start'] += data['chat_timezone']
+        data['time_start'] += get_timezone()
         data['chat_id'] = str(msg.chat.id)
     except (TypeError, ValueError) as error_message:
         await msg.answer(str(error_message))
@@ -30,20 +55,14 @@ async def create_event(data: dict, msg: Message):
 
 async def update_event(data: dict, msg: Message):
     try:
-        data['time_start'] += data['chat_timezone']
-        data['chat_id'] = str(msg.chat.id)
-
-        chat_id = msg.chat.id
-        event_name = data['event_name']
-
-        event = (await APIRequest(chat_id=chat_id, url_params=f'?name={event_name.strip()}').get_events_json())[0].get('events')[0]
-        event_id = event.get('id')
+        event_id = data.get('event_id')
     except (TypeError, ValueError) as error_message:
         await msg.answer(str(error_message))
     else:
         event_data = Event(**data).model_dump()
+        print(event_data)
         status_code = await APIRequest(url_params=f'update-event/').update_event(event_id, event_data)
-        await check_status_code(status_code, msg, 'событие обновлено')
+        await check_status_code(status_code, msg, 'Cобытие обновлено')
 
 
 async def delete_event(data: dict, msg: Message):

@@ -2,7 +2,7 @@ from sqlalchemy import select
 from fuzzywuzzy import fuzz
 
 import pytz
-from datetime import datetime as dt, time, timedelta
+from datetime import datetime as dt, time, timedelta, timezone
 from typing import Any
 from dateutil import tz
 
@@ -20,6 +20,7 @@ class Event:
         self.date_format = '%Y-%m-%d'
         self.time_format = '%H:%M:%S%z'
         self.datetime_format = f'{self.date_format}T{self.time_format}'
+        
         self.tzoffset = tz.tzoffset(None, 3*60*60) # TODO refactoring!! pydantic-settings
 
         self.__create_datetime(datetime if datetime else str(dt.now(tz=self.tzoffset).strftime(self.datetime_format)))
@@ -80,6 +81,10 @@ class Event:
         result = await self.get_events_by_query(query)
         return result
 
+    async def get_event_by_id(self, event_id: int) -> dict[str, list[ES.EventBase]]:
+        query = select(self.event).where(self.event.chat_id == self.chat_id).where(self.event.id == event_id)
+        result = await self.get_events_by_query(query)
+        return result
 
     async def get_events_by_name(self, name: str, verbal_error: int = 80) -> dict[str, list[ES.EventBase]]:
         query = select(self.event).where(self.event.chat_id == self.chat_id)

@@ -1,8 +1,3 @@
-import calendar
-import locale
-
-from aiogram.types import User
-from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -19,14 +14,7 @@ class GenericEvent:
         cancel_btn: str = None,
         show_alerts: bool = False
     ) -> None:
-        """Pass labels if you need to have alternative language of buttons
-
-        Parameters:
-        locale (str): Locale calendar must have captions in (in format uk_UA), if None - default English will be used
-        cancel_btn (str): label for button Cancel to cancel date input
-        today_btn (str): label for button Today to set calendar back to todays date
-        show_alerts (bool): defines how the date range error would shown (defaults to False)
-        """
+        
         self._labels = EventLabels()
         
         if cancel_btn:

@@ -1,15 +1,11 @@
-from aiogram.types import CallbackQuery
+from aiogram_calendar import SimpleCalendar
 
-from aiogram_calendar import SimpleCalendar, SimpleCalendarCallback
-
-from auxiliary_functions import *
+import auxiliary_functions 
 from schemas import *
 from api_request import *
 from states import *
 
-
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.types import CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 from aiogram_calendar.schemas import SimpleCalendarCallback, SimpleCalAct, highlight, superscript
 
@@ -27,18 +23,13 @@ class SimpleCalendar(SimpleCalendar):
         chat_id = None,
         events = None
     ) -> InlineKeyboardMarkup:
-        """
-        Creates an inline keyboard with the provided year and month
-        :param int year: Year to use in the calendar, if None the current year is used.
-        :param int month: Month to use in the calendar, if None the current month is used.
-        :return: Returns InlineKeyboardMarkup object with the calendar.
-        """
+        
         today = datetime.now()
         now_weekday = self._labels.days_of_week[today.weekday()]
         now_month, now_year, now_day = today.month, today.year, today.day
 
         if chat_id and not(events):
-            events = await get_events_on_month(chat_id, now_year, now_month)  
+            events = await auxiliary_functions.get_events_on_month(chat_id, now_year, now_month)  
         
         event_dates = await self._get_events_dates(events, now_year, now_month, now_day,)
 
@@ -136,18 +127,13 @@ class SimpleCalendar(SimpleCalendar):
             text=self._labels.cancel_caption,
             callback_data=SimpleCalendarCallback(act=SimpleCalAct.cancel, year=year, month=month, day=day).pack()
         )]
-        # cancel_row.append()
-        # # cancel_row.append(InlineKeyboardButton(text=" ", callback_data=self.ignore_callback))
-        # cancel_row.append(InlineKeyboardButton(
-        #     text=self._labels.today_caption,
-        #     callback_data=SimpleCalendarCallback(act=SimpleCalAct.today, year=year, month=month, day=day).pack()
-        # ))
+
         kb.append(cancel_row)        
         return InlineKeyboardMarkup(row_width=7, inline_keyboard=kb)
 
     async def _update_calendar(self, query: CallbackQuery, with_date: datetime):
         chat_id = query.message.chat.id
-        events = await get_events_on_month(chat_id, with_date.year, with_date.month)
+        events = await auxiliary_functions.get_events_on_month(chat_id, with_date.year, with_date.month)
         await query.message.edit_reply_markup(
             reply_markup=await self.start_calendar(int(with_date.year), int(with_date.month), chat_id=chat_id, events=events)
         )
@@ -163,23 +149,7 @@ class SimpleCalendar(SimpleCalendar):
 
         return event_dates
 
-    async def process_selection(self, args: dict) -> tuple:
-        """
-        Process the callback_query. This method generates a new calendar if forward or
-        backward is pressed. This method should be called inside a CallbackQueryHandler.
-        :param query: callback_query, as provided by the CallbackQueryHandler
-        :param data: callback_data, dictionary, set by calendar_callback
-        :return: Returns a tuple (Boolean,datetime), indicating if a date is selected
-                    and returning the date if so.
-        """
-        query = args.get('callback_query')
-        data = args.get('callback_data')
-
-        event_on_month = args.get('calendar_events_dates')
-        actual_datetime = args.get('actual_datetime')
-        year, month, day = actual_datetime.year, actual_datetime.month, actual_datetime.day
-        event_dates = await self._get_events_dates(event_on_month, year, month, day)
-        
+    async def process_selection(self, query, data) -> tuple:        
         return_data = (False, None)
 
         # processing empty buttons, answering with no action
@@ -192,8 +162,6 @@ class SimpleCalendar(SimpleCalendar):
         # user picked a day button, return date
         if data.act == SimpleCalAct.day:
             return_data = await self.process_day_select(data, query)
-            if str(return_data[1].day) in event_dates:
-                print('YES YES YES')
             return return_data
 
         # user navigates to previous year, editing message with new calendar
@@ -212,12 +180,6 @@ class SimpleCalendar(SimpleCalendar):
         if data.act == SimpleCalAct.next_m:
             next_date = temp_date + timedelta(days=31)
             await self._update_calendar(query, next_date)
-        # if data.act == SimpleCalAct.today:
-        #     next_date = datetime.now()
-        #     if next_date.year != int(data.year) or next_date.month != int(data.month):
-        #         await self._update_calendar(query, datetime.now())
-        #     else:
-        #         await query.answer(cache_time=60)
         if data.act == SimpleCalAct.cancel:
             await query.message.delete_reply_markup()
         # at some point user clicks DAY button, returning date
