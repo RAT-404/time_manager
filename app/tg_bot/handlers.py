@@ -7,16 +7,15 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, Callback
 from aiogram.fsm.context import FSMContext
 
 from aiogram_calendar import get_user_locale
-from aiogram_calendar.schemas import SimpleCalendarCallback
 
 from aiogram.types import CallbackQuery
 
 
 from datetime import datetime
 
-from auxiliary_functions import *
-from schemas import *
-from api_request import *
+from additional_functions import update_event, get_events_on_month, delete_event, get_timezone, get_local_datetime_start, get_utc_datetime
+from schemas import EventAct, EventCallback, SimpleCalendarCallback, SimpleCalAct
+from api_request import APIRequest
 from states import EventOperations
 
 from modifaed_calendar import SimpleCalendar
@@ -25,24 +24,24 @@ from modifaed_calendar import SimpleCalendar
 router = Router()      
 
 
-timezone_buttons = [[KeyboardButton(text=f'+{i}') for i in range(0, 6)],
-                    [KeyboardButton(text=f'+{i}') for i in range(6, 12)]]
+# timezone_buttons = [[KeyboardButton(text=f'+{i}') for i in range(0, 6)],
+#                     [KeyboardButton(text=f'+{i}') for i in range(6, 12)]]
 
-command_buttons = [[KeyboardButton(text='/create_event'), KeyboardButton(text='/update_event'), KeyboardButton(text='/delete_event')],
-                   [KeyboardButton(text='/create_rt'), KeyboardButton(text='/delete_rt'), KeyboardButton(text='/all')]]
+# command_buttons = [[KeyboardButton(text='/create_event'), KeyboardButton(text='/update_event'), KeyboardButton(text='/delete_event')],
+#                    [KeyboardButton(text='/create_rt'), KeyboardButton(text='/delete_rt'), KeyboardButton(text='/all')]]
 
-timezone_kb = ReplyKeyboardMarkup(keyboard=timezone_buttons, resize_keyboard=True)      
-start_kb = ReplyKeyboardMarkup(keyboard=command_buttons, resize_keyboard=True)
+# timezone_kb = ReplyKeyboardMarkup(keyboard=timezone_buttons, resize_keyboard=True)      
+# start_kb = ReplyKeyboardMarkup(keyboard=command_buttons, resize_keyboard=True)
 
 
 @router.message(Command('help'))
 async def get_all_events(msg: Message):
-    await msg.answer('Привет, рад, что ты решил воспользоваться моим time manager`ом, для начала напиши /start')
+    await msg.answer('Привет, рад, что ты решил воспользоваться моим time manager`ом, для начала напиши /all')
 
 
-@router.message(Command('start'))
-async def start(msg: Message):
-    await msg.answer(text='Выберите следующее действие и следуйте инструкциям', reply_markup=start_kb)
+# @router.message(Command('start'))
+# async def start(msg: Message):
+#     await msg.answer(text='Выберите следующее действие и следуйте инструкциям', reply_markup=start_kb)
 
 
 @router.message(Command('all'))
@@ -55,7 +54,7 @@ async def view_all_events(msg: Message, state: FSMContext):
     )
 
 
-@router.callback_query(SimpleCalendarCallback.filter())
+@router.callback_query(SimpleCalendarCallback.filter(F.act != SimpleCalAct.select_new_event_date))
 async def process_simple_calendar(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
     calendar = SimpleCalendar(
         locale=await get_user_locale(callback_query.from_user), show_alerts=True
@@ -68,25 +67,26 @@ async def process_simple_calendar(callback_query: CallbackQuery, callback_data: 
 
     events_on_month = await get_events_on_month(callback_query.message.chat.id, actual_year, actual_month)
     
-    kb = [[InlineKeyboardButton(
-                text=event.get('event_name'),
-                callback_data=EventCallback(act=EventAct.change_event,
-                                            id=str(event.get('id'))).pack())] 
-            for event in events_on_month.get('events') if datetime.strptime(event.get('date_start'), '%Y-%m-%d').day == date.day]
+    if date:
+        kb = [[InlineKeyboardButton(
+                    text=event.get('event_name'),
+                    callback_data=EventCallback(act=EventAct.change_event,
+                                                id=str(event.get('id'))).pack())] 
+                for event in events_on_month.get('events') if datetime.strptime(event.get('date_start'), '%Y-%m-%d').day == date.day]
 
 
-    cancel_row = [
-            [InlineKeyboardButton(
-                text='append', 
-                callback_data=EventCallback(act=EventAct.append).pack()
-            ),
-            InlineKeyboardButton(
-                text='cancel', 
-                callback_data=EventCallback(act=EventAct.cancel).pack()
-            )]
-        ]
-    kb += cancel_row
-    kb = InlineKeyboardMarkup(row_width=1, inline_keyboard=kb)
+        cancel_row = [
+                [InlineKeyboardButton(
+                    text='append', 
+                    callback_data=EventCallback(act=EventAct.append).pack()
+                ),
+                InlineKeyboardButton(
+                    text='cancel', 
+                    callback_data=EventCallback(act=EventAct.cancel).pack()
+                )]
+            ]
+        kb += cancel_row
+        kb = InlineKeyboardMarkup(row_width=1, inline_keyboard=kb)
 
     if selected:        
         await callback_query.message.answer(
@@ -101,56 +101,66 @@ async def process_select_event(callback_query: CallbackQuery, callback_data: Cal
     chat_id = callback_query.message.chat.id
     
     event, status_code = await APIRequest(chat_id, url_params=f'get-event/{callback_data.id}').get_events_json()
-    event = event.get('events')[0]
     
-    event_id, event_name, date_start, time_start = event.get('id'), event.get('event_name'), event.get('date_start'), event.get('time_start')
-    
-    event_data = {
-        'event_id': event_id,
-        'chat_id': str(callback_query.message.chat.id), 
-        'event_name': event_name, 
-        'date_start': date_start, 
-        'time_start': time_start
-    }
+    try:
+        event = event.get('events')[0]
+    except IndexError:
+        await callback_query.message.answer('Событие не обнаружено, возможно оно было удалено ранее')
+    else:
+        event_id, event_name, date_start, time_start_utc = event.get('id'), event.get('event_name'), event.get('date_start'), event.get('time_start')
+        date_start, time_start = get_local_datetime_start(date_start, time_start_utc)
 
-    time_start = time_start.split('+')[0]
-    date_start = datetime.strftime(datetime.strptime(date_start, '%Y-%m-%d'), '%d-%m-%Y')
-    
-    await state.update_data(event_data=event_data)
-    
-    kb = [
-        [InlineKeyboardButton(
-            text=event_name, 
-            callback_data=EventCallback(act=EventAct.change_event_name, id=str(event_id)).pack()
-        )],
-        [InlineKeyboardButton(
-            text=date_start, 
-            callback_data=EventCallback(act=EventAct.change_event_date, id=str(event_id)).pack()
-        )],
-        [InlineKeyboardButton(
-            text=time_start, 
-            callback_data=EventCallback(act=EventAct.change_event_time, id=str(event_id)).pack()
-        )],
-        [
-            InlineKeyboardButton(
-                text='delete', 
-                callback_data=EventCallback(act=EventAct.delete, id=str(event_id)).pack()
-            ),
-            InlineKeyboardButton(
-                text='cancel', 
-                callback_data=EventCallback(act=EventAct.cancel, id=str(event_id)).pack()
-            )
-        ]
-    ]
-    
-    kb = InlineKeyboardMarkup(row_width=1, inline_keyboard=kb)
+        event_data = {
+            'event_id': event_id,
+            'chat_id': str(callback_query.message.chat.id), 
+            'event_name': event_name, 
+            'date_start': date_start, 
+            'time_start': time_start
+        }
 
-    await callback_query.message.answer(
-        "События: ",
-        reply_markup=kb
-    )    
+        time_start = time_start.split('+')[0]
+        
+        try:
+            date_start = datetime.strftime(datetime.strptime(date_start, '%Y-%m-%d'), '%d-%m-%Y')
+        except ValueError:
+            await callback_query.message.answer('Что то пошло не так, попробуйте еще раз')
+        else:
+            await state.update_data(event_data=event_data)
+            
+            kb = [
+                [InlineKeyboardButton(
+                    text=event_name, 
+                    callback_data=EventCallback(act=EventAct.change_event_name, id=str(event_id)).pack()
+                )],
+                [InlineKeyboardButton(
+                    text=date_start, 
+                    callback_data=EventCallback(act=EventAct.change_event_date, id=str(event_id)).pack()
+                )],
+                [InlineKeyboardButton(
+                    text=time_start, 
+                    callback_data=EventCallback(act=EventAct.change_event_time, id=str(event_id)).pack()
+                )],
+                [
+                    InlineKeyboardButton(
+                        text='delete', 
+                        callback_data=EventCallback(act=EventAct.delete, id=str(event_id)).pack()
+                    ),
+                    InlineKeyboardButton(
+                        text='cancel', 
+                        callback_data=EventCallback(act=EventAct.cancel, id=str(event_id)).pack()
+                    )
+                ]
+            ]
+            
+            kb = InlineKeyboardMarkup(row_width=1, inline_keyboard=kb)
+
+            await callback_query.message.answer(
+                "События: ",
+                reply_markup=kb
+            )    
 
 
+#change event name
 @router.callback_query(EventCallback.filter(F.act==EventAct.change_event_name))
 async def change_event_name_callback(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
     await state.set_state(EventOperations.change_event_name)
@@ -161,68 +171,94 @@ async def change_event_name_callback(callback_query: CallbackQuery, callback_dat
 async def change_event_name(msg: Message, state: FSMContext):
     data = (await state.get_data()).get('event_data')
     data['event_name'] = msg.text.lower()
-    await update_event(data, msg)
+    
     try:
-        print()   
+        await update_event(data, msg)
     except Exception as e:
-        print(e)
         await msg.answer(text='Что то пошло не так')
         
 
-# @router.callback_query(EventCallback.filter(F.act==EventAct.change_event_date))
-# async def change_event_date_callback(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
-#     await state.set_state(EventOperations.change_event_date)
-#     msg = callback_query.message
-#     calendar = SimpleCalendar(locale=await get_user_locale(callback_query.from_user))
-#     await msg.answer(
-#         "Выберите новую дату: ",
-#         reply_markup=await calendar.start_calendar(chat_id=msg.chat.id)
-#     )
+#change event date
+@router.callback_query(EventCallback.filter(F.act==EventAct.change_event_date))
+async def change_event_date_callback(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
+    await state.set_state(EventOperations.change_event_date)
+    msg = callback_query.message
+    calendar = SimpleCalendar(locale=await get_user_locale(callback_query.from_user))
+    await msg.answer(
+        "Выберите новую дату: ",
+        reply_markup=await calendar.start_calendar(chat_id=msg.chat.id, day_selection_act=SimpleCalAct.select_new_event_date)
+    )
 
 
-# @router.message(EventOperations.change_event_date)
-# @router.callback_query(SimpleCalendarCallback.filter())
-# async def change_event_date(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
-#     data = (await state.get_data()).get('event_data')
-#     msg = callback_query.message
+@router.callback_query(SimpleCalendarCallback.filter(F.act == SimpleCalAct.select_new_event_date))
+async def change_event_date(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
+    data = (await state.get_data()).get('event_data')
+    msg = callback_query.message
 
-#     try:
-#         selected, actual_year, actual_month = await process_calendar(callback_query, callback_query)
-    
-#         if selected: 
-#             print(selected)       
-#             # await callback_query.message.answer(
-#             #     "События: ",
-#             #     reply_markup=await create_events_kb(callback_query.message.chat.id, actual_year, actual_month)
-#             # )      
-#     except Exception as e:
-#         print(e)
-#         await msg.answer(text='Что то пошло не так')
+    try:
+        calendar = SimpleCalendar(
+            locale=await get_user_locale(callback_query.from_user), show_alerts=True
+        )
+        actual_datetime = datetime.now()
+        actual_year = actual_datetime.year
+        calendar.set_dates_range(datetime(actual_year - 1, 1, 1), datetime(actual_year + 3, 12, 31))
+        
+        selected, date = await calendar.process_selection(callback_query, callback_data)
 
-
-
-
-
-
-
-
-@router.callback_query(EventCallback.filter(F.act==EventAct.change_event_time))
-async def pr(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
-    print(callback_data)
-    await callback_query.message.answer(text='change_event_time')
+        if selected:
+            new_event_date = str(date.date())
+            utc_date, utc_time = get_utc_datetime(new_event_date, data.get('time_start'))
+            data['date_start'] = utc_date
+            data['time_start'] = utc_time
+            await update_event(data, msg)
+            
+    except Exception as e:
+        await msg.answer(text='Что то пошло не так, возможно ошибка на стороне сервера')
+    else:
+        await callback_query.message.answer("Дата события обновлена")
+        await state.clear()
 
 
+#delete event
 @router.callback_query(EventCallback.filter(F.act==EventAct.delete))
 async def pr(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
-    print(callback_data)
+    data = (await state.get_data()).get('event_data')
+    await delete_event(data, callback_query.message)
     await callback_query.message.answer(text='delete')
 
-@router.callback_query(EventCallback.filter(F.act==EventAct.cancel))
-async def pr(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
-    await state.clear()
-    await callback_query.message.answer(text='delete')
 
+#change event time
+@router.callback_query(EventCallback.filter(F.act==EventAct.change_event_time))
+async def change_event_time_callback(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
+    await state.set_state(EventOperations.change_event_time)
+    msg = callback_query.message
+    await msg.answer("Напишите новое время для события в формате ЧАСЫ:МИНУТЫ (например 15:32) ")
+
+
+@router.message(EventOperations.change_event_time)
+async def change_event_name(msg: Message, state: FSMContext):
+    data = (await state.get_data()).get('event_data')
+    event_date = data.get('date_start')
+    event_time = msg.text.lower() + ':00'
     
+    try:
+        utc_date, utc_time = get_utc_datetime(event_date, event_time)
+        data['date_start'] = utc_date
+        data['time_start'] = utc_time  
+        await update_event(data, msg)
+    except ValueError:
+        await msg.answer('Время написано в неправильном формате, попробуйте еще раз')
+    else:
+        await msg.answer('Время обновлено')
+        await state.clear()
+    
+
+#cancel event choose
+@router.callback_query(EventCallback.filter(F.act==EventAct.cancel))
+async def cancel_choosing_events(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
+    await state.clear()
+
+
 @router.callback_query(EventCallback.filter(F.act==EventAct.append))
 async def append_event_callback(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
     await callback_query.message.answer(text='Введите новое название события')

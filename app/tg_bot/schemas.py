@@ -1,7 +1,25 @@
 from enum import Enum
 from aiogram.filters.callback_data import CallbackData
+from aiogram_calendar.schemas import CalendarCallback
 
 from pydantic import BaseModel
+
+
+class SimpleCalAct(str, Enum):
+    ignore = 'IGNORE'
+    prev_y = 'PREV-YEAR'
+    next_y = 'NEXT-YEAR'
+    prev_m = 'PREV-MONTH'
+    next_m = 'NEXT-MONTH'
+    cancel = 'CANCEL'
+    today = 'TODAY'
+    day = 'DAY'
+
+    select_new_event_date = 'SELECT_NEW_EVENT_DATE'
+
+
+class SimpleCalendarCallback(CalendarCallback, prefix="simple_calendar"):
+    act: SimpleCalAct
 
 
 class EventAct(str, Enum):

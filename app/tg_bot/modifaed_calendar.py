@@ -1,17 +1,12 @@
-from aiogram_calendar import SimpleCalendar
-
-import auxiliary_functions 
-from schemas import *
-from api_request import *
-from states import *
-
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-
-from aiogram_calendar.schemas import SimpleCalendarCallback, SimpleCalAct, highlight, superscript
-
 import calendar
 from datetime import datetime, timedelta
 
+from aiogram_calendar import SimpleCalendar
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram_calendar.schemas import SimpleCalendarCallback, highlight, superscript
+
+import additional_functions
+from schemas import SimpleCalAct, SimpleCalendarCallback
 
 
 class SimpleCalendar(SimpleCalendar):
@@ -21,7 +16,8 @@ class SimpleCalendar(SimpleCalendar):
         year: int = datetime.now().year,
         month: int = datetime.now().month,
         chat_id = None,
-        events = None
+        events = None,
+        day_selection_act: str | None = None
     ) -> InlineKeyboardMarkup:
         
         today = datetime.now()
@@ -29,7 +25,7 @@ class SimpleCalendar(SimpleCalendar):
         now_month, now_year, now_day = today.month, today.year, today.day
 
         if chat_id and not(events):
-            events = await auxiliary_functions.get_events_on_month(chat_id, now_year, now_month)  
+            events = await additional_functions.get_events_on_month(chat_id, now_year, now_month)  
         
         event_dates = await self._get_events_dates(events, now_year, now_month, now_day,)
 
@@ -109,6 +105,9 @@ class SimpleCalendar(SimpleCalendar):
         # Calendar rows - Days of month
         month_calendar = calendar.monthcalendar(year, month)
         
+        if not(day_selection_act):
+            day_selection_act = SimpleCalAct.day
+        
         for week in month_calendar:
             days_row = []
             for day in week:
@@ -118,7 +117,7 @@ class SimpleCalendar(SimpleCalendar):
                 
                 days_row.append(InlineKeyboardButton(
                     text=highlight_day(),
-                    callback_data=SimpleCalendarCallback(act=SimpleCalAct.day, year=year, month=month, day=day).pack()
+                    callback_data=SimpleCalendarCallback(act=day_selection_act, year=year, month=month, day=day).pack()
                 ))
             kb.append(days_row)
 
@@ -133,7 +132,7 @@ class SimpleCalendar(SimpleCalendar):
 
     async def _update_calendar(self, query: CallbackQuery, with_date: datetime):
         chat_id = query.message.chat.id
-        events = await auxiliary_functions.get_events_on_month(chat_id, with_date.year, with_date.month)
+        events = await additional_functions.get_events_on_month(chat_id, with_date.year, with_date.month)
         await query.message.edit_reply_markup(
             reply_markup=await self.start_calendar(int(with_date.year), int(with_date.month), chat_id=chat_id, events=events)
         )
@@ -160,7 +159,7 @@ class SimpleCalendar(SimpleCalendar):
         temp_date = datetime(int(data.year), int(data.month), 1)
 
         # user picked a day button, return date
-        if data.act == SimpleCalAct.day:
+        if data.act in (SimpleCalAct.day, SimpleCalAct.select_new_event_date):
             return_data = await self.process_day_select(data, query)
             return return_data
 

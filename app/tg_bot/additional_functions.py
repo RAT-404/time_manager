@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from handlers import Message
 from aiogram.fsm.context import FSMContext
 from api_request import APIRequest
@@ -6,8 +6,35 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, Callback
 from aiogram_calendar import get_user_locale
 
 from modifaed_calendar import SimpleCalendar
-from schemas import *
-from api_request import *
+import schemas
+from api_request import APIRequest, RemainderTime
+
+
+def get_utc_datetime(event_date: str, new_event_time: str) -> tuple[str, str]:
+    utc_event_date = event_date
+    date_format = '%Y-%m-%d'
+    time_format = '%H:%M:%S'
+    timezone_offset = get_timezone(get_string=False)
+    new_event_datetime = f'{event_date} {new_event_time}'
+
+    event_day = datetime.strptime(event_date, date_format).day
+    utc_datetime = datetime.strptime(new_event_datetime, f'{date_format} {time_format}') - timezone_offset
+    utc_event_time = str(utc_datetime.time()) + get_timezone()
+    if utc_datetime.date().day != event_day:
+        utc_event_date = utc_datetime.date()
+        
+    return (str(utc_event_date), str(utc_event_time))
+
+
+def get_local_datetime_start(date_start, time_start_utc: str) -> str:
+    datetime_start = datetime.strptime(f'{date_start} {time_start_utc}', '%Y-%m-%d %H:%M:%S%z')
+    
+    time_start_utc = datetime.strptime(time_start_utc, '%H:%M:%S%z')
+    time_offset = time_start_utc.tzinfo.utcoffset(datetime.now())
+    
+    local_time_start = str((time_start_utc + time_offset).time())
+    local_date = str((datetime_start + time_offset).date())
+    return local_date, local_time_start
 
 
 async def unpack_state(state: FSMContext) -> tuple:
@@ -15,10 +42,13 @@ async def unpack_state(state: FSMContext) -> tuple:
     event_id, event_name, date_start, time_start = event_data.get('event_id'), event_data.get('event_name'), event_data.get('date_start'), event_data.get('time_start')
     return (event_id, event_name, date_start, time_start)
 
-def get_timezone() -> str:
+
+def get_timezone(get_string: bool = True) -> str | timedelta:
     dt = datetime.now()
-    offset = str(dt.astimezone().tzinfo.utcoffset(dt)).split(':')[0]
-    offset = f'+0{offset}00' if len(offset) == 1 else f'+{offset}00'
+    offset = dt.astimezone().tzinfo.utcoffset(dt)
+    if get_string:
+        offset = str(offset).split(':')[0]
+        offset = f'+0{offset}00' if len(offset) == 1 else f'+{offset}00'
     return offset
 
 
@@ -31,16 +61,6 @@ async def get_events_on_month(chat_id, year: str, month: str):
     return events
 
 
-# async def process_calendar(callback_query, callback_data):
-    
-#     return (selected, actual_year, actual_month)
-
-
-
-# async def create_events_kb(chat_id, actual_year, actual_month) -> InlineKeyboardMarkup:
-    
-
-
 async def create_event(data: dict, msg: Message):
     try:
         data['time_start'] += get_timezone()
@@ -48,7 +68,7 @@ async def create_event(data: dict, msg: Message):
     except (TypeError, ValueError) as error_message:
         await msg.answer(str(error_message))
     else:
-        event_data = Event(**data).model_dump()
+        event_data = schemas.Event(**data).model_dump()
         status_code = await APIRequest(url_params=f'create-event/').create_event(event_data)
         await check_status_code(status_code, msg, 'событие создано')
 
@@ -59,20 +79,14 @@ async def update_event(data: dict, msg: Message):
     except (TypeError, ValueError) as error_message:
         await msg.answer(str(error_message))
     else:
-        event_data = Event(**data).model_dump()
-        print(event_data)
+        event_data = schemas.Event(**data).model_dump()
         status_code = await APIRequest(url_params=f'update-event/').update_event(event_id, event_data)
         await check_status_code(status_code, msg, 'Cобытие обновлено')
 
 
 async def delete_event(data: dict, msg: Message):
-    chat_id = msg.chat.id
-    event_name = data.get('event_name')
-    events = (await APIRequest(chat_id=chat_id, url_params=f'?name={event_name}').get_events_json())[0].get('events')
-    event_id = events[0].get('id')
-
-    status_code = await APIRequest(url_params=f'delete-event/').delete_event(event_id)
-    await check_status_code(status_code, msg, 'событие удалено')
+    status_code = await APIRequest(url_params=f'delete-event/').delete_event(data.get('event_id'))
+    await check_status_code(status_code, msg, 'Событие удалено')
 
 
 async def create_rt(data: dict, msg: Message):

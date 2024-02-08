@@ -1,7 +1,6 @@
-from auxiliary_functions import *
-from schemas import *
-from api_request import *
-from states import *
+import additional_functions
+from schemas import EventCallback, EventAct
+from additional_functions import get_events_on_month 
 from common import GenericEvent
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
@@ -20,7 +19,7 @@ class EventChoose(GenericEvent):
         now_month, now_year = today.month, today.year
 
         if chat_id and not(events):
-            events = await get_events_on_month(chat_id, now_year, now_month)
+            events = await additional_functions.get_events_on_month(chat_id, now_year, now_month)
 
         kb = [[InlineKeyboardButton(
                 text=event.get('event_name'),
