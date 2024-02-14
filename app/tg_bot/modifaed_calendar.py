@@ -1,8 +1,9 @@
 import calendar
 from datetime import datetime, timedelta
 
-from aiogram_calendar import SimpleCalendar
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+
+from aiogram_calendar import SimpleCalendar
 from aiogram_calendar.schemas import SimpleCalendarCallback, highlight, superscript
 
 import additional_functions
@@ -17,7 +18,7 @@ class SimpleCalendar(SimpleCalendar):
         month: int = datetime.now().month,
         chat_id = None,
         events = None,
-        day_selection_act: str | None = None
+        day_selection_act: str = SimpleCalAct.day
     ) -> InlineKeyboardMarkup:
         
         today = datetime.now()
@@ -51,7 +52,7 @@ class SimpleCalendar(SimpleCalendar):
         def highlight_day():
             day_string = format_day_string()
             if day_string in event_dates:                
-                return f'{day_string}*'
+                return f'*{day_string}*'
 
             if now_month == month and now_year == year and now_day == day:
                 return highlight(day_string)
@@ -123,7 +124,7 @@ class SimpleCalendar(SimpleCalendar):
 
         # nav today & cancel button
         cancel_row = [InlineKeyboardButton(
-            text=self._labels.cancel_caption,
+            text='Отмена',
             callback_data=SimpleCalendarCallback(act=SimpleCalAct.cancel, year=year, month=month, day=day).pack()
         )]
 
@@ -159,7 +160,7 @@ class SimpleCalendar(SimpleCalendar):
         temp_date = datetime(int(data.year), int(data.month), 1)
 
         # user picked a day button, return date
-        if data.act in (SimpleCalAct.day, SimpleCalAct.select_new_event_date):
+        if data.act in (SimpleCalAct.day, SimpleCalAct.select_new_event_date, SimpleCalAct.append_new_event_date):
             return_data = await self.process_day_select(data, query)
             return return_data
 

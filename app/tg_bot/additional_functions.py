@@ -1,11 +1,9 @@
 from datetime import datetime, timedelta
-from handlers import Message
-from aiogram.fsm.context import FSMContext
-from api_request import APIRequest
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram_calendar import get_user_locale
 
-from modifaed_calendar import SimpleCalendar
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message
+
+from handlers import Message
 import schemas
 from api_request import APIRequest, RemainderTime
 
@@ -52,10 +50,6 @@ def get_timezone(get_string: bool = True) -> str | timedelta:
     return offset
 
 
-def highlight_event_day(text):
-    return f'{text}\n*'
-
-
 async def get_events_on_month(chat_id, year: str, month: str):
     events, *_ = await APIRequest(chat_id=chat_id, url_params=f'get-month-events/?date={year}-{month}').get_events_json()
     return events
@@ -63,15 +57,16 @@ async def get_events_on_month(chat_id, year: str, month: str):
 
 async def create_event(data: dict, msg: Message):
     try:
-        data['time_start'] += get_timezone()
         data['chat_id'] = str(msg.chat.id)
     except (TypeError, ValueError) as error_message:
         await msg.answer(str(error_message))
     else:
         event_data = schemas.Event(**data).model_dump()
+        
         status_code = await APIRequest(url_params=f'create-event/').create_event(event_data)
-        await check_status_code(status_code, msg, 'событие создано')
-
+        if status_code in (404, 422):
+            raise Exception('Unprocessable Entity')
+        
 
 async def update_event(data: dict, msg: Message):
     try:
@@ -99,7 +94,6 @@ async def create_rt(data: dict, msg: Message):
     data['event_id'] = event_id
     data['time_to_remaind'] += data['chat_timezone']
     remainder_time_data = [RemainderTime(**data).model_dump()]
-    print(remainder_time_data)
     status_code = await APIRequest(url_params=f'create-remainder-times/').create_remainder_times(remainder_time_data)
     await check_status_code(status_code, msg, 'напоминание создано')
 

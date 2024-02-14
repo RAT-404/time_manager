@@ -1,11 +1,11 @@
+from datetime import datetime
+
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+
 import additional_functions
 from schemas import EventCallback, EventAct
 from additional_functions import get_events_on_month 
 from common import GenericEvent
-
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-
-from datetime import datetime
 
 
 class EventChoose(GenericEvent):

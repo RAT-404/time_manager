@@ -9,9 +9,13 @@ class EventOperations(StatesGroup):
     change_event_time = State()
     
 
+    append_event_name = State()
+    append_event_date = State()
+    append_event_time = State()
+
     choose_event = State()
-    choose_date = State()
-    choose_time = State()
+    choose_event_date = State()
+    choose_event_time = State()
 
     choosing_timezone = State()
 

@@ -1,8 +1,10 @@
 from enum import Enum
-from aiogram.filters.callback_data import CallbackData
-from aiogram_calendar.schemas import CalendarCallback
 
 from pydantic import BaseModel
+from aiogram.filters.callback_data import CallbackData
+
+from aiogram_calendar.schemas import CalendarCallback
+
 
 
 class SimpleCalAct(str, Enum):
@@ -16,6 +18,7 @@ class SimpleCalAct(str, Enum):
     day = 'DAY'
 
     select_new_event_date = 'SELECT_NEW_EVENT_DATE'
+    append_new_event_date = 'APPEND_NEW_EVENT_DATE'
 
 
 class SimpleCalendarCallback(CalendarCallback, prefix="simple_calendar"):
@@ -37,6 +40,25 @@ class EventCallback(CallbackData, prefix='event'):
     act: str
     id: str | None = None
     event_name: str | None = None
+    date_start: str | None = None
+    time_start: str | None = None
+
+
+class RemainderAct(str, Enum):
+    choose_rm = 'CHOOSE_RM'
+    change_rm = 'CHANGE_EVENT'
+    change_rm_date = 'CHANGE_EVENT_DATE'
+    change_rm_time = 'CHANGE_EVENT_TIME'
+    delete = 'DELETE'
+    
+    append = 'APPEND'
+    cancel = 'CANCEL'
+
+
+class RemainderCallback(CallbackData, prefix='remainder'):
+    act: str
+    id: str | None = None
+    event_id: str | None = None
     date_start: str | None = None
     time_start: str | None = None
 

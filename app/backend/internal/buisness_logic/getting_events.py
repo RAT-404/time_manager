@@ -1,8 +1,7 @@
 from sqlalchemy import select
 from fuzzywuzzy import fuzz
-
 import pytz
-from datetime import datetime as dt, time, timedelta, timezone
+from datetime import datetime as dt, time, timedelta
 from typing import Any
 from dateutil import tz
 
