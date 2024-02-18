@@ -9,12 +9,6 @@ class APIRequest:
     def __init__(self, chat_id: str = '', api_url: str = get_settings().API_URL, url_params: str = ''):
         self.api_url = f'{api_url}{url_params}' if not chat_id else f'{api_url}{chat_id}/{url_params}'
         
-    async def get_events(self, for_internal_usage: bool = False):
-        api_json, status_code = await self.get_events_json()
-        
-        parse_json = self.__parse_json_to_event_dates_list if for_internal_usage else self.__parse_json_to_pretty_str
-        return (parse_json(api_json), status_code)
-    
     async def get_events_json(self):
         async with aiohttp.ClientSession() as session:
             async with session.get(self.api_url) as response:
@@ -53,33 +47,5 @@ class APIRequest:
             async with session.patch(url=f'{self.api_url}{rmt_id}', json=rmt_data) as resp:
                 return resp.status
 
-
-    def __parse_json_to_event_dates_list(self, api_json: str):
-        events: list[dict] = api_json.get('events', False)
-        if events:
-            return [event.get('date_start') for event in events]
-
-    def __parse_json_to_pretty_str(self,
-                                   api_json: str,
-                                   parse_remainder_times: bool = True) -> str:        
-        finally_str = ''
-        events: list[dict] = api_json.get('events', False)
-        if events:
-            for event in events:
-                event_date, event_time = event.get('date_start'), event.get('time_start')
-                event_name = event.get('event_name')
-
-                if parse_remainder_times:
-                    remainder_times = event.get('remainder_times', [])
-                    if remainder_times == []:
-                        remainder_times = '\n----У данного события нет напоминаний'
-                    else:
-                        remainder_times = [f"\n----{rm.get('date_to_remaind')} {rm.get('time_to_remaind').split('+')[0]} ({rm.get('id')})" for rm in remainder_times]
-                        remainder_times = ''.join(remainder_times)
-                else:
-                    remainder_times = ''
-                event_time = event_time.split('+', 1)[0]
-                finally_str += f'{event_name} {event_date} {event_time}{remainder_times}\n'
-        return finally_str  
     
     

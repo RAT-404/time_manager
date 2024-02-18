@@ -19,35 +19,6 @@ event_router = APIRouter(
 )
 
 
-@event_router.get('/{chat_id}')
-async def get_event(chat_id: Annotated[str, Path()],
-                    datetime: Annotated[str | None, Query()] = None,
-                    name: Annotated[str | None, Query()] = None,
-                    session: AsyncSession = Depends(get_async_session),
-                    optional: str | None = None) -> dict[str, list[ES.Event]]:
-
-    event = Event(chat_id, models.Event, session, datetime)
-    
-    if datetime:
-        match(optional):
-            case 'H':
-                result = await event.get_events_by_hour()
-            case 'D':
-                result = await event.get_events_by_date()
-            case _:
-                result = await event.get_event_by_current_time()
-        
-        return result
-
-    elif name:
-        result = await event.get_events_by_name(name)
-        return result
-    
-    result = await event.get_events_by_query()
-    
-    return result
-
-
 @event_router.get('/{chat_id}/get-month-events')
 async def get_event(chat_id: Annotated[str, Path()],
                     date: Annotated[str | None, Query()] = None,
