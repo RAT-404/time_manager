@@ -26,7 +26,7 @@ class Event:
         
 
     async def get_events_by_query(self, query: Any | None = None) -> dict[str, list[ES.Event]]:
-        query = query if query is not None else select(self.event).where(self.event.chat_id == self.chat_id).where(self.event.date_start >= self.date)
+        query = query if query is not None else select(self.event).where(self.event.chat_id == self.chat_id)
         events = await self.session.execute(query)
         
 

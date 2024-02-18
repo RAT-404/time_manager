@@ -9,27 +9,31 @@ from aiogram_calendar.schemas import CalendarCallback
 
 class SimpleCalAct(str, Enum):
     ignore = 'IGNORE'
-    prev_y = 'PREV-YEAR'
-    next_y = 'NEXT-YEAR'
-    prev_m = 'PREV-MONTH'
-    next_m = 'NEXT-MONTH'
+    prev_y = 'P-Y'
+    next_y = 'N-Y'
+    prev_m = 'P-M'
+    next_m = 'N-M'
     cancel = 'CANCEL'
     today = 'TODAY'
     day = 'DAY'
 
-    select_new_event_date = 'SELECT_NEW_EVENT_DATE'
-    append_new_event_date = 'APPEND_NEW_EVENT_DATE'
+    select_new_event_date = 'SNED'
+    
+    select_rm_date = 'SRD'
+    select_new_rm_date = 'SNRD'
 
 
 class SimpleCalendarCallback(CalendarCallback, prefix="simple_calendar"):
     act: SimpleCalAct
+    event_id: str | None = None
+    day_selection_act: str | None = None
 
 
 class EventAct(str, Enum):
-    change_event = 'CHANGE_EVENT'
-    change_event_name = 'CHANGE_EVENT_NAME'
-    change_event_date = 'CHANGE_EVENT_DATE'
-    change_event_time = 'CHANGE_EVENT_TIME'
+    change_event = 'CE'
+    change_event_name = 'CEN'
+    change_event_date = 'CED'
+    change_event_time = 'CET'
     delete = 'DELETE'
     
     append = 'APPEND'
@@ -45,10 +49,10 @@ class EventCallback(CallbackData, prefix='event'):
 
 
 class RemainderAct(str, Enum):
-    choose_rm = 'CHOOSE_RM'
-    change_rm = 'CHANGE_EVENT'
-    change_rm_date = 'CHANGE_EVENT_DATE'
-    change_rm_time = 'CHANGE_EVENT_TIME'
+    select_rm = 'SR'
+    change_rm = 'CR'
+    change_rm_date = 'CRD'
+    change_rm_time = 'CRT'
     delete = 'DELETE'
     
     append = 'APPEND'

@@ -8,6 +8,7 @@ from internal.db import models
 
 from internal.buisness_logic.change_record_statement import DBRecord
 from internal.buisness_logic.getting_events import Event
+from internal.buisness_logic.getting_remainder_time import RemainderTime
 
 from datetime import datetime
 
@@ -69,6 +70,13 @@ async def get_event_by_id(chat_id: Annotated[str, Path()],
                           session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.Event]]:
 
     result = await Event(chat_id, models.Event, session).get_event_by_id(event_id)    
+    return result
+
+
+@event_router.get('/get-remainder-time/{rmt_id}')
+async def get_rmt_by_id(rmt_id: Annotated[int, Path()],
+                        session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.RemainderTime]]:
+    result = await RemainderTime(models.RemainderTime, session).get_rmt_by_id(rmt_id)   
     return result
 
   

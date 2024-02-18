@@ -47,6 +47,12 @@ class APIRequest:
         async with aiohttp.ClientSession() as session:
             async with session.delete(url=f'{self.api_url}{remainder_time_id}') as resp:
                 return resp.status
+            
+    async def update_rmt(self, rmt_id: str, rmt_data):
+         async with aiohttp.ClientSession() as session:
+            async with session.patch(url=f'{self.api_url}{rmt_id}', json=rmt_data) as resp:
+                return resp.status
+
 
     def __parse_json_to_event_dates_list(self, api_json: str):
         events: list[dict] = api_json.get('events', False)

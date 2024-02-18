@@ -8,16 +8,18 @@ class EventOperations(StatesGroup):
     change_event_date = State()
     change_event_time = State()
     
-
     append_event_name = State()
     append_event_date = State()
     append_event_time = State()
 
-    choose_event = State()
-    choose_event_date = State()
-    choose_event_time = State()
 
-    choosing_timezone = State()
 
-    choosing_rt_id = State()
+class RemainderTimeOperations(StatesGroup):
+    select_rmt = State()
+
+    change_rmt_date = State()
+    change_rmt_time = State()
+
+    append_rmt_date = State()
+    append_rmt_time = State()
 
