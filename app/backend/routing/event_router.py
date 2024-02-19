@@ -37,7 +37,7 @@ async def get_event(chat_id: Annotated[str, Path()],
 
 
 @event_router.get('/{chat_id}/get-event/{event_id}')
-@cache(expire=30, namespace='event')
+@cache(expire=5*60, namespace='event')
 async def get_event_by_id(chat_id: Annotated[str, Path()],
                           event_id: Annotated[int, Path()],
                           session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.Event]]:
