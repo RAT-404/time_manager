@@ -22,12 +22,6 @@ async def startup_timer():
     await time_remainder.start_timer(session)
 
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-    
-#     yield
-
-
 app = FastAPI(title='time_manager')
 
 
