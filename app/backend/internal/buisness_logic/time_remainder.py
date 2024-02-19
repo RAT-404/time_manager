@@ -20,7 +20,6 @@ async def start_timer(session):
                             ).where(remainder_time.date_to_remaind == current_datetime.date())
 
         remainder_times = sorted((await session.execute(query)).all())
-        print
 
         rmts = []
         if remainder_times:
@@ -38,7 +37,6 @@ async def start_timer(session):
                     seconds_to_remaind = int((datetime.combine(date_to_remaind, time_to_remaind) - local_datetime).total_seconds())
                     rmts.append((chat_id, event_name, date_to_remaind, time_to_remaind, seconds_to_remaind))
             
-            print(rmts)
             try:
                 chat_id, event_name, date_to_remaind, time_to_remaind, seconds_to_remaind = rmts[0]
             except IndexError:
