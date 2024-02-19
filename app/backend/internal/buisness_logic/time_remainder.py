@@ -1,11 +1,8 @@
-from sqlalchemy import select
+from datetime import datetime
+
 import asyncio
-
-from datetime import datetime, time
-from pytz import timezone
-from dateutil import tz
-
 import aiohttp
+from sqlalchemy import select
 
 from internal.db import models, config
     
@@ -18,15 +15,12 @@ async def start_timer(session):
 
     while True:
         current_datetime = datetime.utcnow()
-        time_ = current_datetime.time()
-        t = time(hour=time_.hour, minute=time_.minute, second=time_.second, tzinfo=tz.tzoffset(None, 3*60*60))
         query = select(event['chat_id', 'event_name'], remainder_time['date_to_remaind', 'time_to_remaind']
                        ).filter(event.id == remainder_time.event_id
                             ).where(remainder_time.date_to_remaind == current_datetime.date())
-                                    # ).filter(t <= remainder_time.time_to_remaind)
-        
 
         remainder_times = sorted((await session.execute(query)).all())
+        print
 
         rmts = []
         if remainder_times:
@@ -44,6 +38,7 @@ async def start_timer(session):
                     seconds_to_remaind = int((datetime.combine(date_to_remaind, time_to_remaind) - local_datetime).total_seconds())
                     rmts.append((chat_id, event_name, date_to_remaind, time_to_remaind, seconds_to_remaind))
             
+            print(rmts)
             try:
                 chat_id, event_name, date_to_remaind, time_to_remaind, seconds_to_remaind = rmts[0]
             except IndexError:
@@ -57,6 +52,7 @@ async def start_timer(session):
                     async with aiohttp.ClientSession() as web_session:
                         async with web_session.get(url=f'https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message}') as resp:
                             status_code = resp.status
+        await asyncio.sleep(60)
 
   
 

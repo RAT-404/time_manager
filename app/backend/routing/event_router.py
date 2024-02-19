@@ -1,16 +1,17 @@
 from fastapi import APIRouter, Query, Body, Path, Depends, Response
+from fastapi_cache.decorator import cache
 
 from typing import Annotated
+from datetime import datetime
 
-from internal.db.schemas import EventSchema as ES
+
+from internal.db.schemas import EventSchema as ES, RemainderTimeSchema as RT
 from internal.db.database import AsyncSession, get_async_session
 from internal.db import models
 
 from internal.buisness_logic.change_record_statement import DBRecord
 from internal.buisness_logic.getting_events import Event
 from internal.buisness_logic.getting_remainder_time import RemainderTime
-
-from datetime import datetime
 
 
 event_router = APIRouter(
@@ -20,6 +21,7 @@ event_router = APIRouter(
 
 
 @event_router.get('/{chat_id}/get-month-events')
+@cache(expire=5*60, namespace='event')
 async def get_event(chat_id: Annotated[str, Path()],
                     date: Annotated[str | None, Query()] = None,
                     session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.Event]]:
@@ -34,8 +36,8 @@ async def get_event(chat_id: Annotated[str, Path()],
     return result
 
 
-
 @event_router.get('/{chat_id}/get-event/{event_id}')
+@cache(expire=30, namespace='event')
 async def get_event_by_id(chat_id: Annotated[str, Path()],
                           event_id: Annotated[int, Path()],
                           session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.Event]]:
@@ -45,8 +47,9 @@ async def get_event_by_id(chat_id: Annotated[str, Path()],
 
 
 @event_router.get('/get-remainder-time/{rmt_id}')
+@cache(expire=30, namespace='remainder_time')
 async def get_rmt_by_id(rmt_id: Annotated[int, Path()],
-                        session: AsyncSession = Depends(get_async_session)) -> dict[str, list[ES.RemainderTime]]:
+                        session: AsyncSession = Depends(get_async_session)) -> dict[str, list[RT.RemainderTime]]:
     result = await RemainderTime(models.RemainderTime, session).get_rmt_by_id(rmt_id)   
     return result
 
@@ -58,7 +61,7 @@ async def create_event(event: Annotated[ES.EventCreate, Body()], session: AsyncS
     
 
 @event_router.post('/create-remainder-times')
-async def create_remainder_time(remainder_time_list: Annotated[list[ES.RemainderTimeCreate], Body()],
+async def create_remainder_time(remainder_time_list: Annotated[list[RT.RemainderTimeCreate], Body()],
                                 session: AsyncSession = Depends(get_async_session)) -> Response:
     await DBRecord(session, models.RemainderTime).create_record(remainder_time_list)
     return Response(status_code=200)
@@ -74,8 +77,9 @@ async def update_event_by_id(event_id: Annotated[int, Path()],
 
 @event_router.patch('/update-remainder-time/{remainder_time_id}')
 async def update_remainder_time_by_id(remainder_time_id: Annotated[int, Path()],
-                                      remainder_time_params: Annotated[ES.RemainderTimeCreate, Body()],
+                                      remainder_time_params: Annotated[RT.RemainderTimeCreate, Body()],
                                       session = Depends(get_async_session)) -> Response:
+    
     await DBRecord(session, models.RemainderTime, remainder_time_params).patch_record(remainder_time_id)
     return Response(status_code=200)
 

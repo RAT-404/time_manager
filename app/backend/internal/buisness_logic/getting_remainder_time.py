@@ -1,11 +1,8 @@
 from sqlalchemy import select
-from fuzzywuzzy import fuzz
-import pytz
-from datetime import datetime as dt, time, timedelta
-from typing import Any
-from dateutil import tz
 
-from internal.db.schemas import EventSchema as ES
+from typing import Any
+
+from internal.db.schemas import EventSchema as ES, RemainderTimeSchema as RT
 from internal.db import database
 from internal.db import models
 
@@ -15,12 +12,12 @@ class RemainderTime:
         self.session = session
         self.rmt = rmt
 
-    async def __get_rmt_by_query(self, query: Any | None = None) -> dict[str, list[ES.RemainderTime]]:
+    async def __get_rmt_by_query(self, query: Any | None = None) -> dict[str, list[RT.RemainderTime]]:
         if query is None:
             return {'remainder_times': None}
         
         rmt = await self.session.execute(query)
-        schema_rmt = [ES.RemainderTime(**row[0].__dict__) for row in rmt]
+        schema_rmt = [RT.RemainderTime(**row[0].__dict__) for row in rmt]
 
         return {'remainder_time': schema_rmt}
     

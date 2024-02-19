@@ -1,4 +1,4 @@
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, as_declarative, scoped_session
+from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, as_declarative
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_scoped_session
 from sqlalchemy.exc import SQLAlchemyError
 

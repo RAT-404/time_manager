@@ -2,15 +2,14 @@ from sqlalchemy import select
 
 from datetime import datetime as dt, timedelta
 from typing import Any
-from dateutil import tz
 
-from internal.db.schemas import EventSchema as ES
+from internal.db.schemas import EventSchema as ES, RemainderTimeSchema as RT
 from internal.db import database
 from internal.db import models
 
 
 class Event:
-    def __init__(self, chat_id: str, event: models.Event, session: database.AsyncSession, datetime: str | None = None,  query_fields: tuple[str] | None = None):
+    def __init__(self, chat_id: str, event: models.Event, session: database.AsyncSession, datetime: str | None = None):
         self.session = session
         self.event = event
         self.chat_id = chat_id
@@ -33,7 +32,7 @@ class Event:
             schema_event = ES.Event(**row.__dict__)
             rem_time = models.RemainderTime
             rem_times = await self.session.execute(select(rem_time).where(rem_time.event_id == row.id))
-            schema_event.remainder_times += [ES.RemainderTime(**rem_time_row[0].__dict__) for rem_time_row in rem_times]
+            schema_event.remainder_times += [RT.RemainderTime(**rem_time_row[0].__dict__) for rem_time_row in rem_times]
             schema_events.append(schema_event)
 
         return {'events': schema_events}

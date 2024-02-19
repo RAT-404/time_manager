@@ -27,13 +27,13 @@ class SimpleCalendar(SimpleCalendar):
         now_weekday = self._labels.days_of_week[today.weekday()]
         now_month, now_year, now_day = today.month, today.year, today.day
 
-        if chat_id and not(events) and not(event_id):
-            events = await additional_functions.get_events_on_month(chat_id, now_year, now_month)
+        if chat_id and not(events) and not(event_id): #  and day_selection_act not in (SimpleCalAct.select_rm_date, SimpleCalAct.select_new_rm_date)
+            events = await additional_functions.get_events_on_month(chat_id, year, month)
         
-        event_dates = await self._get_events_dates(events, now_year, now_month, now_day) if events else []
+        event_dates = await self._get_events_dates(events) if events else []
 
-        remainder_times = await additional_functions.get_remainder_times_for_event(chat_id, event_id) if chat_id and event_id else []           
-        rmt_dates = await self._get_rm_dates(remainder_times, now_year, now_month, now_day)
+        remainder_times = await additional_functions.get_remainder_times_for_event(chat_id, event_id) if chat_id and event_id else []     
+        rmt_dates = await self._get_rm_dates(remainder_times, year, month)
 
 
         def highlight_month():
@@ -78,7 +78,7 @@ class SimpleCalendar(SimpleCalendar):
         years_row = []
         years_row.append(InlineKeyboardButton(
             text="<<",
-            callback_data=SimpleCalendarCallback(act=SimpleCalAct.prev_y, year=year, month=month, day=1, day_selection_act=self.day_selection).pack()
+            callback_data=SimpleCalendarCallback(act=SimpleCalAct.prev_y, year=year, month=month, day=1, event_id=event_id, day_selection_act=self.day_selection).pack()
         ))
         years_row.append(InlineKeyboardButton(
             text=str(year) if year != now_year else highlight(year),
@@ -86,7 +86,7 @@ class SimpleCalendar(SimpleCalendar):
         ))
         years_row.append(InlineKeyboardButton(
             text=">>",
-            callback_data=SimpleCalendarCallback(act=SimpleCalAct.next_y, year=year, month=month, day=1, day_selection_act=self.day_selection).pack()
+            callback_data=SimpleCalendarCallback(act=SimpleCalAct.next_y, year=year, month=month, day=1, event_id=event_id, day_selection_act=self.day_selection).pack()
         ))
         kb.append(years_row)
 
@@ -94,7 +94,7 @@ class SimpleCalendar(SimpleCalendar):
         month_row = []
         month_row.append(InlineKeyboardButton(
             text="<",
-            callback_data=SimpleCalendarCallback(act=SimpleCalAct.prev_m, year=year, month=month, day=1, day_selection_act=self.day_selection).pack()
+            callback_data=SimpleCalendarCallback(act=SimpleCalAct.prev_m, year=year, month=month, day=1, event_id=event_id, day_selection_act=self.day_selection).pack()
         ))
         month_row.append(InlineKeyboardButton(
             text=highlight_month(),
@@ -102,7 +102,7 @@ class SimpleCalendar(SimpleCalendar):
         ))
         month_row.append(InlineKeyboardButton(
             text=">",
-            callback_data=SimpleCalendarCallback(act=SimpleCalAct.next_m, year=year, month=month, day=1, day_selection_act=self.day_selection).pack()
+            callback_data=SimpleCalendarCallback(act=SimpleCalAct.next_m, year=year, month=month, day=1, event_id=event_id, day_selection_act=self.day_selection).pack()
         ))
         kb.append(month_row)
 
@@ -141,34 +141,32 @@ class SimpleCalendar(SimpleCalendar):
         kb.append(cancel_row)        
         return InlineKeyboardMarkup(row_width=7, inline_keyboard=kb)
 
-    async def _update_calendar(self, query: CallbackQuery, with_date: datetime, day_selection_act: str):
+    async def _update_calendar(self, query: CallbackQuery, with_date: datetime, day_selection_act: str, event_id: str | None = None):
         chat_id = query.message.chat.id
-        events = await additional_functions.get_events_on_month(chat_id, with_date.year, with_date.month)
         await query.message.edit_reply_markup(
-            reply_markup=await self.start_calendar(int(with_date.year), int(with_date.month), chat_id=chat_id, events=events, day_selection_act=day_selection_act)
+            reply_markup=await self.start_calendar(int(with_date.year), int(with_date.month), chat_id=chat_id, day_selection_act=day_selection_act, event_id=event_id)
         )
     
-    async def _get_events_dates(self, events: dict, now_year: int, now_month: int, now_day: int) -> list[str]: 
+    async def _get_events_dates(self, events: dict) -> list[str]: 
         event_dates = []
         if events:
             events = events.get('events')
             for event in events:
                 event_date, event_time = additional_functions.get_local_datetime_start(event.get('date_start'), event.get('time_start'))
                 event_date = datetime.strptime(event_date, '%Y-%m-%d')
-                # if (event_date.month == now_month and event_date.day >= now_day) or (event_date.month > now_month and event_date.year >= now_year):
                 event_dates.append(str(event_date.day))
 
         return event_dates
     
-    async def _get_rm_dates(self, rmt_list: dict, now_year: int, now_month: int, now_day: int) -> list[str]:
+    async def _get_rm_dates(self, rmt_list: dict, actual_year: int, actual_month) -> list[str]:
         rmt_dates = []
         if rmt_list:
             rmt_list = rmt_list.get('remainder_times')
             for rmt in rmt_list:
                 rmt_date, rmt_time = additional_functions.get_local_datetime_start(rmt.get('date_to_remaind'), rmt.get('time_to_remaind'))
                 rmt_date = datetime.strptime(rmt_date, '%Y-%m-%d')
-                # if (rmt_date.month == now_month and rmt_date.day >= now_day) or (rmt_date.month > now_month and rmt_date.year >= now_year):
-                rmt_dates.append(str(rmt_date.day))
+                if rmt_date.month == actual_month and rmt_date.year == actual_year:
+                    rmt_dates.append(str(rmt_date.day))
         return rmt_dates
 
 
@@ -197,19 +195,19 @@ class SimpleCalendar(SimpleCalendar):
         # user navigates to previous year, editing message with new calendar
         if data.act == SimpleCalAct.prev_y:
             prev_date = datetime(int(data.year) - 1, int(data.month), 1)
-            await self._update_calendar(query, prev_date, data.day_selection_act)
+            await self._update_calendar(query, prev_date, data.day_selection_act, data.event_id)
         # user navigates to next year, editing message with new calendar
         if data.act == SimpleCalAct.next_y:
             next_date = datetime(int(data.year) + 1, int(data.month), 1)
-            await self._update_calendar(query, next_date, data.day_selection_act)
+            await self._update_calendar(query, next_date, data.day_selection_act, data.event_id)
         # user navigates to previous month, editing message with new calendar
         if data.act == SimpleCalAct.prev_m:
             prev_date = temp_date - timedelta(days=1)
-            await self._update_calendar(query, prev_date, data.day_selection_act)
+            await self._update_calendar(query, prev_date, data.day_selection_act, data.event_id)
         # user navigates to next month, editing message with new calendar
         if data.act == SimpleCalAct.next_m:
             next_date = temp_date + timedelta(days=31)
-            await self._update_calendar(query, next_date, data.day_selection_act)
+            await self._update_calendar(query, next_date, data.day_selection_act, data.event_id)
         if data.act == SimpleCalAct.cancel:
             await query.message.delete_reply_markup()
         # at some point user clicks DAY button, returning date

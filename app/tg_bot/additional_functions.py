@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
@@ -59,13 +59,14 @@ def get_timezone(get_string: bool = True) -> str | timedelta:
 
 
 async def get_events_on_month(chat_id, year: str, month: str):
-    events, *_ = await APIRequest(chat_id=chat_id, url_params=f'get-month-events/?date={year}-{month}').get_events_json()
+    events, *_ = await APIRequest(chat_id=chat_id, url_params=f'get-month-events?date={year}-{month}').get_events_json()
     return events
 
 
 async def get_remainder_times_for_event(chat_id: str, event_id: str):
     event, *_ = await APIRequest(chat_id=chat_id, url_params=f'get-event/{event_id}').get_events_json()
     remainder_times = event.get('events')[0]
+
     return remainder_times
 
 
