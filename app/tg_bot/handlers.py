@@ -513,8 +513,6 @@ async def change_rmt_date_callback(callback_query: CallbackQuery, callback_data:
 @router.callback_query(SimpleCalendarCallback.filter(F.act == SimpleCalAct.select_new_rm_date))
 async def change_event_date(callback_query: CallbackQuery, callback_data: CallbackData, state: FSMContext):
     rmt_data = (await state.get_data()).get('rmt_data')
-    msg = callback_query.message
-
     day_selection_act = SimpleCalAct.select_new_rm_date
 
     try:
@@ -532,15 +530,15 @@ async def change_event_date(callback_query: CallbackQuery, callback_data: Callba
             utc_date, utc_time = get_utc_datetime(new_event_date, rmt_data.get('time_to_remaind'))
             rmt_data['date_to_remaind'] = utc_date
             rmt_data['time_to_remaind'] = utc_time
-            await update_remainder_time(rmt_data, msg)
+            await update_remainder_time(rmt_data, callback_query.message)
             
     except Exception as e:
-        await msg.answer(text='Что то пошло не так, возможно ошибка на стороне сервера')
+        await callback_query.message.answer(text='Что то пошло не так, возможно ошибка на стороне сервера')
     else:
         await state.clear()
         await callback_query.message.answer("Дата напоминания обновлена")
     finally:
-        await view_all_events(msg, state)
+        await view_all_events(callback_query, state)
         
 
 # create new rmt
