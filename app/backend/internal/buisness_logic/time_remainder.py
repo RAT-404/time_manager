@@ -4,7 +4,7 @@ import asyncio
 import aiohttp
 from sqlalchemy import select
 
-from internal.db import models, config
+from ..db import models, config
     
 
 async def start_timer(session):

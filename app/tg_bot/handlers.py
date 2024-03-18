@@ -6,8 +6,6 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 
-from aiogram_calendar import get_user_locale
-
 from additional_functions import (
     update_event, 
     get_events_on_month, 
@@ -19,6 +17,7 @@ from additional_functions import (
     update_remainder_time,
     delete_rmt,
     create_remainder_time,
+    get_user_locale
     )
 
 from schemas import EventAct, EventCallback, SimpleCalendarCallback, SimpleCalAct, RemainderAct, RemainderCallback
@@ -27,7 +26,7 @@ from states import EventOperations, RemainderTimeOperations
 from modifaed_calendar import SimpleCalendar
 
 
-router = Router()      
+router = Router()
 
 
 cancel_rmt_kb = InlineKeyboardMarkup(row_width=1, inline_keyboard=[[InlineKeyboardButton(text='Отмена', callback_data=RemainderCallback(act=RemainderAct.cancel).pack())]]) 
@@ -48,6 +47,7 @@ async def get_all_events(msg: Message, state: FSMContext):
 @router.message(Command('all'))
 async def view_all_events(msg: Message | CallbackQuery, state: FSMContext):
     calendar = SimpleCalendar(locale=await get_user_locale(msg.from_user))
+
     if isinstance(msg, CallbackQuery):
         msg = msg.message
     await msg.answer(

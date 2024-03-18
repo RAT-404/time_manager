@@ -1,11 +1,24 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
+import locale
+import os
+import requests
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, User
 
-from handlers import Message
 import schemas
 from api_request import APIRequest
+
+
+async def get_user_locale(from_user: User) -> str:
+    return ''
+    # loc = from_user.language_code
+    # user_locale = locale.locale_alias[loc]
+    
+    # if os.name == 'nt':
+    #     user_locale = user_locale.split(".")[0]
+    
+    # return user_locale
 
 
 def highlight_event_day(event_day: str) -> str:
@@ -61,6 +74,7 @@ def get_timezone(get_string: bool = True) -> str | timedelta:
 async def get_events_on_month(chat_id, year: str, month: str):
     events, *_ = await APIRequest(chat_id=chat_id, url_params=f'get-month-events?date={year}-{month}').get_events_json()
     return events
+    
 
 
 async def get_remainder_times_for_event(chat_id: str, event_id: str):

@@ -1,15 +1,13 @@
-from fastapi import FastAPI, BackgroundTasks
+import asyncio
+from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from redis import asyncio as aioredis
 
-import asyncio
-from contextlib import asynccontextmanager
-
 from routing.event_router import event_router
-from internal.db import database
+from internal.db import database, config
 from internal.buisness_logic import time_remainder
 
 
@@ -27,7 +25,7 @@ app = FastAPI(title='time_manager')
 
 @app.on_event("startup")
 async def startup():
-    redis = aioredis.from_url("redis://localhost", encoding='utf-8', decode_response=True) # 
+    redis = aioredis.from_url(str(config.get_settings().REDIS_URL), encoding='utf-8', decode_response=True)
     FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
     asyncio.create_task(startup_timer())
     

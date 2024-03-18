@@ -1,7 +1,7 @@
 from sqlalchemy import update, delete, select, insert
 
-from internal.db import models, database as db
-from internal.db.schemas import EventSchema as ES, RemainderTimeSchema as RT 
+from ..db import models, database as db
+from ..db.schemas import EventSchema as ES, RemainderTimeSchema as RT 
 
 
 class DBRecord:

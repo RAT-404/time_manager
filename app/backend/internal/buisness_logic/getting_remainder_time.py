@@ -2,9 +2,9 @@ from sqlalchemy import select
 
 from typing import Any
 
-from internal.db.schemas import EventSchema as ES, RemainderTimeSchema as RT
-from internal.db import database
-from internal.db import models
+from ..db.schemas import EventSchema as ES, RemainderTimeSchema as RT
+from ..db import database
+from ..db import models
 
 
 class RemainderTime:

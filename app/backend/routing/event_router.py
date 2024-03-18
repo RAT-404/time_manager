@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Query, Body, Path, Depends, Response
-from fastapi_cache.decorator import cache
 
 from typing import Annotated
 from datetime import datetime
@@ -13,6 +12,7 @@ from internal.buisness_logic.change_record_statement import DBRecord
 from internal.buisness_logic.getting_events import Event
 from internal.buisness_logic.getting_remainder_time import RemainderTime
 
+from fastapi_cache.decorator import cache
 
 event_router = APIRouter(
     prefix='/event', 

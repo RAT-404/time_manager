@@ -9,6 +9,7 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
+        user: root
         environment:
             - POSTGRES_DB=${POSTGRES_DB}
             - POSTGRES_USER=${POSTGRES_USER}
@@ -25,14 +26,29 @@ services:
         depends_on:
             db:
                 condition: service_healthy
-
-    app:
-        build: .
-        # command: bash -c "cd app/database && alembic upgrade head && cd ../.. && python app/main.py"
+    backend:
+        build:
+            context: ./app/backend
+        user: root
         volumes:
-            - .:/code
+            - ./app/backend:/usr/src/code
         ports:
             - "8000:8000"
+        env_file:
+            - .env
+        depends_on:
+            db:
+                condition: service_healthy
+    tg_bot:
+        build:
+            context: ./app/tg_bot
+        user: root
+        volumes:
+            - ./app/tg_bot:/usr/src/code
+        ports:
+            - "8081:8081"
+        env_file:
+            - .env
         depends_on:
             db:
                 condition: service_healthy

@@ -1,0 +1,12 @@
+FROM python:3.11-slim-bookworm
+
+WORKDIR /usr/src/code
+
+COPY ./requirements.txt /usr/src/code/requirements.txt
+RUN apt-get update
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir --upgrade -r /usr/src/code/requirements.txt
+COPY . /usr/src/code/tg_bot
+
+CMD ["python", "main.py"]
+EXPOSE 8081
