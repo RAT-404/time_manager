@@ -10,15 +10,15 @@ import schemas
 from api_request import APIRequest
 
 
-async def get_user_locale(from_user: User) -> str:
-    return ''
-    # loc = from_user.language_code
-    # user_locale = locale.locale_alias[loc]
+async def get_user_locale(from_user: User) -> str:   
+    loc = from_user.language_code
+    user_locale = locale.locale_alias[loc]
+
+    if os.name == 'nt':
+        user_locale = user_locale.split(".")[0] # 'nt' == Windows
     
-    # if os.name == 'nt':
-    #     user_locale = user_locale.split(".")[0]
+    return user_locale
     
-    # return user_locale
 
 
 def highlight_event_day(event_day: str) -> str:
