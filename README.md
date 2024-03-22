@@ -16,19 +16,19 @@ pip install time_manager
    ```sh
    git clone https://github.com/RAT-404/time_manager.git
    ```
-2. Enter next params to `.env` file, it need to create in base root
-  POSTGRES_DB = your_db_name
-  POSTGRES_USER = your_db_user
-  POSTGRES_PASSWORD = your_db_password
-  POSTGRES_PORT = your_db_port
-  POSTGRES_HOST = your_host_postgres_db ( if you using app with docker, you should write host.docker.internal, else write url )
+2. Enter next params to `.env` file, it need to create in base root:
+  1) POSTGRES_DB = your_db_name
+  2) POSTGRES_USER = your_db_user
+  3) POSTGRES_PASSWORD = your_db_password
+  4) POSTGRES_PORT = your_db_port
+  5) POSTGRES_HOST = your_host_postgres_db ( if you using app with docker, you should write host.docker.internal, else write url )
+    
+  6) REDIS_PORT = redis_db_port
+  7) REDIS_HOST = your_host_redis_for_db ( same situation with docker for this field )
   
-  REDIS_PORT = redis_db_port
-  REDIS_HOST = your_host_redis_for_db ( same situation with docker for this field )
+  8) BOT_TOKEN = your_bot_token
   
-  BOT_TOKEN = your_bot_token
-  
-  API_URL = your_API_url ( check port in this url and dockerfile in backend root (default starting on 8000 port ) )
+  9) API_URL = your_API_url ( check port in this url and dockerfile in backend root (default starting on 8000 port ) )
   
 3. To start with docker from base project root:
    ```sh
