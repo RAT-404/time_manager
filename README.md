@@ -26,9 +26,9 @@ The project is created to solve event management problems. This represents a Fas
     ```
 
     For fields POSTGRES_HOST and REDIS_HOST:
-    If you using app with docker, you should write host.docker.internal, else write url.
+    If you using app with docker, you should write host.docker.internal, else write your url.
     For fields API_URL:
-    Check port in this url and dockerfile in backend directory ( default starting on 8000 port )
+    Check port in this url and dockerfile in backend directory ( default url can be http://localhost:8000/event or if you use docker http://host.docker.internal:8000/event ).
 
 3. To start with docker from base project directory:
     ```sh
