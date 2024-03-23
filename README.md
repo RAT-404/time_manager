@@ -2,14 +2,6 @@
 
 The project is created to solve event management problems. This represents a FastAPI + tg bot backend as a frontend. Available features: managing events, reminding them with a convenient calendar in the tg bot.
 
-# Installation
-
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install time_manager.
-
-```bash
-pip install time_manager
-```
-
 ## Usage
 
 1. Clone the repo
