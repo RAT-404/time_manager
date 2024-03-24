@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException
 from asyncio import current_task
 
-from . import config
+from .config import get_settings
 
 
 class SessionManager:
@@ -17,7 +17,7 @@ class SessionManager:
         return cls.__instance
     
     def __init__(self):
-        self.__sqlalchemy_url = str(config.get_settings().SQLALCHEMY_URL)
+        self.__sqlalchemy_url = str(get_settings().SQLALCHEMY_URL)
         self.engine = create_async_engine(url=self.__sqlalchemy_url)
         self.async_session_factory = sessionmaker(bind=self.engine, class_=AsyncSession, expire_on_commit=False)
         self.session = async_scoped_session(self.async_session_factory, current_task)

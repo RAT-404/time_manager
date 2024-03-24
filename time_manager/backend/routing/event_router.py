@@ -4,6 +4,10 @@ from typing import Annotated
 from datetime import datetime
 
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from internal.db.schemas import EventSchema as ES, RemainderTimeSchema as RT
 from internal.db.database import AsyncSession, get_async_session
 from internal.db import models

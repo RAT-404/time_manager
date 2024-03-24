@@ -29,7 +29,9 @@ services:
     backend:
         build:
             context: ./time_manager/backend
+        command: bash -c "cd ./internal/db_migrations && alembic upgrade head && cd .. && cd .. && uvicorn main:app --host 0.0.0.0 --port 8000"
         user: root
+        restart: always
         volumes:
             - ./time_manager/backend:/usr/src/code
         ports:
@@ -42,7 +44,9 @@ services:
     tg_bot:
         build:
             context: ./time_manager/tg_bot
+        command: bash -c "python main.py"
         user: root
+        restart: always
         volumes:
             - ./time_manager/tg_bot:/usr/src/code
         ports:

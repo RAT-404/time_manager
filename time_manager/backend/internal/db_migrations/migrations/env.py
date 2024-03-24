@@ -7,13 +7,16 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from . import models 
+import os
+import sys
 
-from . import config
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # fix import
+
+from conf import models, config as app_config
 
 
 config = context.config
-config.set_main_option('sqlalchemy.url', str(config.get_settings().SQLALCHEMY_URL))
+config.set_main_option('sqlalchemy.url', str(app_config.get_settings().SQLALCHEMY_URL))
 
 
 if config.config_file_name is not None:
