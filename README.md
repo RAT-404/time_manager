@@ -6,7 +6,7 @@ The project is created to solve event management problems. This represents a Fas
 
 1. Clone the repo
     ```sh
-        git clone https://github.com/RAT-404/time_manager.git
+       git clone https://github.com/RAT-404/time_manager.git
     ```
 2. Enter next params to `.env` file, it need to create in base directory, you need to use your arguments in this file ( exclude fields POSTGRES_HOST, REDIS_HOST and API_URL ):
 
@@ -27,7 +27,7 @@ The project is created to solve event management problems. This represents a Fas
 
 3. To start with docker from base project directory:
     ```sh
-    docker-compose up --build
+       docker-compose up --build
     ```
 4. Go to your bot in telegram and enter /all
 
