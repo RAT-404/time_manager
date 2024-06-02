@@ -8,7 +8,7 @@ The project is created to solve event management problems. This represents a Fas
     ```sh
        git clone https://github.com/RAT-404/time_manager.git
     ```
-2. Enter next params to `.env` file, it need to create in base directory, you need to use your arguments in this file ( exclude fields POSTGRES_HOST, REDIS_HOST and API_URL ):
+2. Enter next params to `.env` file, it need to create in base directory, you need to use your arguments in this file ( except fields POSTGRES_HOST, REDIS_HOST and API_URL ):
 
     ```sh
        POSTGRES_DB=your_db_name
