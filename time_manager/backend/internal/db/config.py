@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import PostgresDsn, field_validator, RedisDsn
 from functools import lru_cache
+from dotenv import load_dotenv
 
     
 class Settings(BaseSettings):
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
     REDIS_HOST : str
 
     BOT_TOKEN : str
+    API_PORT : int
     API_URL : str
 
     SQLALCHEMY_URL: PostgresDsn | None = None
@@ -49,8 +51,8 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings():
+    load_dotenv()
     return Settings()
-
 
 if __name__ == '__main__':
     print(str(get_settings().SQLALCHEMY_URL))

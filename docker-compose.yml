@@ -3,18 +3,14 @@ version: "3.9"
 services:
     db:
         image: postgres
-        user: root
         restart: always
         healthcheck:
             test: ["CMD-SHELL", "pg_isready"]
             interval: 10s
             timeout: 5s
             retries: 5
-        environment:
-            - POSTGRES_DB=${POSTGRES_DB}
-            - POSTGRES_USER=${POSTGRES_USER}
-            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-            - POSTGRES_HOST=${POSTGRES_HOST}
+        env_file:
+            - .env
         ports:
             - "${POSTGRES_PORT}:5432"
 
@@ -29,13 +25,13 @@ services:
     backend:
         build:
             context: ./time_manager/backend
-        command: bash -c "cd ./internal/db_migrations && alembic upgrade head && cd .. && cd .. && uvicorn main:app --host 0.0.0.0 --port 8000"
+        command: bash -c "cd ./internal/db_migrations && alembic revision --autogenerate && alembic upgrade head && cd .. && cd .. && gunicorn main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind=0.0.0.0:${API_PORT}"
         user: root
         restart: always
         volumes:
             - ./time_manager/backend:/usr/src/code
         ports:
-            - "8000:8000"
+            - "${API_PORT}:${API_PORT}"
         env_file:
             - .env
         depends_on:
@@ -56,7 +52,6 @@ services:
         depends_on:
             db:
                 condition: service_healthy
-
-volumes:
-    postgres_data:
-        driver: local
+# volumes:
+#     postgres_data:
+#         driver: local
