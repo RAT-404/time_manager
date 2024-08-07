@@ -63,12 +63,16 @@ async def unpack_state(state: FSMContext) -> tuple:
 
 
 def get_timezone(get_string: bool = True) -> str | timedelta:
-    dt = datetime.now()
-    offset = dt.astimezone().tzinfo.utcoffset(dt)
-    if get_string:
-        offset = str(offset).split(':')[0]
-        offset = f'+0{offset}00' if len(offset) == 1 else f'+{offset}00'
-    return offset
+    # return '+0300'
+
+    # dt = datetime.now()
+    # offset = dt.astimezone().tzinfo.utcoffset(dt)
+    # offset = 
+    # if get_string:
+    #     offset = str(offset).split(':')[0]
+    #     offset = f'+0{offset}00' if len(offset) == 1 else f'+{offset}00'
+    #     offset = '+0300'
+    return '+0300' if get_string else timedelta(hours=3)
 
 
 async def get_events_on_month(chat_id, year: str, month: str):

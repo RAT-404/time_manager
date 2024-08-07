@@ -559,8 +559,8 @@ async def append_rmt_time(msg: Message, state: FSMContext):
         data['date_to_remaind'] = utc_date
         data['time_to_remaind'] = utc_time
     
-        await create_remainder_time(data, msg)    
-    except ValueError:
+        await create_remainder_time(data, msg)
+    except ValueError as e:
         await msg.answer('Время написано в неправильном формате, попробуйте еще раз')
     else:
         await state.clear()
